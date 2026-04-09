@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String                 @id @default(uuid())
+  name                  String
+  email                 String?                @unique
+  passwordHash          String
+  role                  RoleName
+  status                UserStatus             @default(ACTIVE)
+  isFirstLogin          Boolean                @default(true)
+  profileImage          String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  permissions           String[]               @default([])
+  userPermissions       String[]               @default([])
+  phone                 String?                @unique
+  tokenVersion          Int                    @default(1)
+  auditLogs             AuditLog[]
+  inventoryTransactions InventoryTransaction[]
+  procurementOrders     ProcurementOrder[]
+  procurementShipments  ProcurementShipment[]
+  refreshTokens         RefreshToken[]
+  stockReconciliations  StockReconciliation[]
+  roles                 Role[]
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  users       User[]
+  permissions Permission[]
+}
+
+model Permission {
+  id    String  @id @default(uuid())
+  key   String  @unique
+  label String?
+  roles Role[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  isRevoked Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  userAgent String?
+  module    String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Product {
+  id                   String                    @id @default(uuid())
+  name                 String
+  sku                  String                    @unique
+  purchasePrice        Float
+  isDeleted            Boolean                   @default(false)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  closingStock         Int                       @default(0)
+  minThreshold         Int                       @default(5)
+  categoryId           String?
+  unitId               String?
+  description          String?
+  transactions         InventoryTransaction[]
+  procurementItems     ProcurementItem[]
+  shipmentItems        ProcurementShipmentItem[]
+  category             Category?                 @relation(fields: [categoryId], references: [id])
+  unit                 Unit?                     @relation(fields: [unitId], references: [id])
+  images               ProductImage[]
+  stockReconciliations StockReconciliation[]
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  url       String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model InventoryTransaction {
+  id            String                   @id @default(uuid())
+  productId     String
+  type          InventoryTransactionType
+  quantity      Int
+  closingStock  Int
+  referenceType String?
+  referenceId   String?
+  createdById   String?
+  createdAt     DateTime                 @default(now())
+  metadata      Json?
+  notes         String?
+  referenceName String?
+  totalCost     Float?
+  unitCost      Float?
+  createdBy     User?                    @relation(fields: [createdById], references: [id])
+  product       Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+}
+
+model StockReconciliation {
+  id            String   @id @default(uuid())
+  productId     String
+  expectedStock Int
+  actualStock   Int
+  difference    Int
+  reason        String
+  createdById   String?
+  createdAt     DateTime @default(now())
+  createdBy     User?    @relation(fields: [createdById], references: [id])
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Vendor {
+  id                String             @id @default(uuid())
+  name              String
+  contactPerson     String?
+  email             String             @unique
+  phone             String?
+  address           String?
+  taxId             String?
+  status            String             @default("ACTIVE")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  categoryId        String?
+  paymentTermId     String?
+  procurementOrders ProcurementOrder[]
+  category          Category?          @relation(fields: [categoryId], references: [id])
+  paymentTerm       PaymentTerm?       @relation(fields: [paymentTermId], references: [id])
+}
+
+model Unit {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  code      String    @unique
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
+model Category {
+  id             String     @id @default(uuid())
+  name           String
+  type           String
+  isActive       Boolean    @default(true)
+  sortOrder      Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  parentId       String?
+  normalizedName String
+  parent         Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children       Category[] @relation("CategoryHierarchy")
+  products       Product[]
+  vendors        Vendor[]
+
+  @@unique([normalizedName, parentId, type])
+}
+
+model PaymentTerm {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  days      Int
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  vendors   Vendor[]
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  group     String
+  key       String
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([group, key])
+}
+
+model ProcurementOrder {
+  id            String                @id @default(uuid())
+  vendorId      String
+  status        ProcurementStatus     @default(DRAFT)
+  totalAmount   Float
+  submittedById String?
+  approvedById  String?
+  createdById   String
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  items         ProcurementItem[]
+  createdBy     User                  @relation(fields: [createdById], references: [id])
+  vendor        Vendor                @relation(fields: [vendorId], references: [id])
+  shipments     ProcurementShipment[]
+
+  @@index([status])
+  @@index([vendorId])
+}
+
+model ProcurementItem {
+  id               String                    @id @default(uuid())
+  orderId          String
+  productId        String
+  quantity         Int
+  unitPrice        Float
+  receivedQuantity Int                       @default(0)
+  order            ProcurementOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product          Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  shipmentItems    ProcurementShipmentItem[]
+
+  @@unique([orderId, productId])
+}
+
+model ProcurementShipment {
+  id            String                    @id @default(uuid())
+  orderId       String
+  challanNumber String?
+  invoiceNumber String?
+  receivedAt    DateTime                  @default(now())
+  createdById   String
+  createdBy     User                      @relation(fields: [createdById], references: [id])
+  order         ProcurementOrder          @relation(fields: [orderId], references: [id])
+  items         ProcurementShipmentItem[]
+
+  @@unique([challanNumber, orderId])
+}
+
+model ProcurementShipmentItem {
+  id         String              @id @default(uuid())
+  shipmentId String
+  itemId     String
+  productId  String
+  quantity   Int
+  unitPrice  Float
+  orderItem  ProcurementItem     @relation(fields: [itemId], references: [id])
+  product    Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  shipment   ProcurementShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
+  id           String   @id @default(uuid())
+  userId       String
+  tempPassword String
+  expiryTime   DateTime
+  createdAt    DateTime @default(now())
+}
+
+enum RoleName {
+  ADMIN
+  PROCUREMENT
+  INVENTORY
+  STAFF
+  HR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProcurementStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  ORDERED
+  PARTIALLY_RECEIVED
+  COMPLETED
+  CANCELLED
+}
+
+enum InventoryTransactionType {
+  INITIAL_STOCK
+  PROCUREMENT_IN
+  SALES_OUT
+  MANUAL_IN
+  MANUAL_OUT
+  RECONCILIATION
+  TRANSFER
+}
