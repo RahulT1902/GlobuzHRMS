@@ -108,22 +108,29 @@ export const createProductsBatch = async (req: AuthRequest, res: Response) => {
             purchasePrice: sanitizeNum(v.purchasePrice, 0),
             unitId: sUnitId,
             description: String(description || "").trim(),
-            closingStock: Math.floor(sanitizeNum(v.initialStock, 0)),
+            closingStock: 0, // Initialize at 0, will be updated by transaction
             minThreshold: Math.floor(sanitizeNum(v.minThreshold, 5)),
+            purchaseDate: v.purchaseDate ? new Date(v.purchaseDate) : new Date(),
           }
         });
 
         if (Number(v.initialStock) > 0) {
+          const qty = Math.floor(sanitizeNum(v.initialStock));
           await tx.inventoryTransaction.create({
             data: {
               productId: product.id,
               type: "INITIAL_STOCK",
-              quantity: Math.floor(sanitizeNum(v.initialStock)),
-              closingStock: Math.floor(sanitizeNum(v.initialStock)),
+              quantity: qty,
+              closingStock: qty,
               referenceType: "INITIAL_STOCK",
               notes: "Batch onboarding: Initial stock entry",
               createdById: req.user!.id,
             }
+          });
+          
+          await tx.product.update({
+             where: { id: product.id },
+             data: { closingStock: qty }
           });
         }
         results.push(product);
@@ -163,7 +170,8 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
       description, 
       images, 
       initialStock = 0,
-      minThreshold = 5
+      minThreshold = 5,
+      purchaseDate
     } = req.body;
 
     const normalizedSku = String(sku).trim().toUpperCase();
@@ -182,24 +190,31 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
           unitId: unitId,
           description,
           minThreshold: Number(minThreshold),
-          closingStock: Number(initialStock),
+          closingStock: 0, // Start at 0
           images: { 
             create: (images || []).map((url: string) => ({ url })) 
           },
+          purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
         }
       });
 
       if (Number(initialStock) > 0) {
+        const qty = Number(initialStock);
         await tx.inventoryTransaction.create({
           data: {
             productId: p.id,
             type: "INITIAL_STOCK",
-            quantity: Number(initialStock),
-            closingStock: Number(initialStock),
+            quantity: qty,
+            closingStock: qty,
             referenceType: "INITIAL_STOCK",
             notes: "Product onboarding: Initial stock entry",
             createdById: req.user!.id,
           },
+        });
+        
+        await tx.product.update({
+          where: { id: p.id },
+          data: { closingStock: qty }
         });
       }
 
@@ -358,32 +373,26 @@ export const adjustStock = async (req: AuthRequest, res: Response) => {
     const { quantity, type, referenceType, referenceId, referenceName, unitCost, totalCost, notes } = req.body;
 
     const result = await prisma.$transaction(async (tx) => {
-      const lastTx: any[] = await tx.$queryRaw`
-        SELECT "closingStock"
-        FROM "InventoryTransaction"
-        WHERE "productId" = ${id}
-        ORDER BY "createdAt" DESC
-        LIMIT 1
-        FOR UPDATE
-      `;
+      // 1. Lock the product for update to ensure atomic stock calculation
+      const productData = await tx.product.findUnique({
+        where: { id: String(id) },
+        select: { closingStock: true, id: true }
+      });
 
-      // Fallback if no prior record exists
-      let currentStock = 0;
-      if (lastTx && lastTx.length > 0) {
-        currentStock = lastTx[0].closingStock;
-      } else {
-        const productData = await tx.product.findUnique({ where: { id: String(id) } });
-        currentStock = productData?.closingStock || 0;
+      if (!productData) {
+        throw new Error("Product not found");
       }
 
+      const currentStock = productData.closingStock;
       const isOutward = ["SALES_OUT", "MANUAL_OUT"].includes(type);
-      const newQty = isOutward ? currentStock - Number(quantity) : currentStock + Number(quantity);
+      const delta = isOutward ? -Number(quantity) : Number(quantity);
+      const newQty = currentStock + delta;
 
       if (newQty < 0) {
         throw new Error("Insufficient stock for this operation.");
       }
 
-      // Mandatory Ledger Entry BEFORE balance update
+      // 2. Record historical ledger entry
       await tx.inventoryTransaction.create({
         data: {
           productId: id,
@@ -400,14 +409,14 @@ export const adjustStock = async (req: AuthRequest, res: Response) => {
         }
       });
 
-      // Update the product's snapshot
-      const product = await tx.product.update({
+      // 3. Update the product's master snapshot
+      const updatedProduct = await tx.product.update({
         where: { id: String(id) },
         data: { closingStock: newQty },
         include: { category: true, unit: true }
       });
 
-      return product;
+      return updatedProduct;
     });
 
     return apiResponse.success(res, "Stock adjusted successfully with ledger entry.", result);

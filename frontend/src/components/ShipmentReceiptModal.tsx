@@ -12,7 +12,9 @@ interface ShipmentReceiptModalProps {
 
 const ShipmentReceiptModal: React.FC<ShipmentReceiptModalProps> = ({ isOpen, onClose, order, onSuccess }) => {
   const [challanNumber, setChallanNumber] = useState('');
+  const [challanDate, setChallanDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [globalReceivedAt, setGlobalReceivedAt] = useState(new Date().toISOString().split('T')[0]);
   const [rowDates, setRowDates] = useState<Record<string, string>>({});
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -49,7 +51,9 @@ const ShipmentReceiptModal: React.FC<ShipmentReceiptModalProps> = ({ isOpen, onC
     }
     // Reset state on open
     setChallanNumber('');
+    setChallanDate(new Date().toISOString().split('T')[0]);
     setInvoiceNumber('');
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
     const today = new Date().toISOString().split('T')[0];
     setGlobalReceivedAt(today);
     setQuantities({});
@@ -96,7 +100,9 @@ const ShipmentReceiptModal: React.FC<ShipmentReceiptModalProps> = ({ isOpen, onC
     try {
       const payload = {
         challanNumber: challanNumber.trim() || undefined,
+        challanDate: challanDate,
         invoiceNumber: invoiceNumber.trim() || undefined,
+        invoiceDate: invoiceDate,
         receivedAt: globalReceivedAt,
         receivedItems
       };
@@ -152,7 +158,7 @@ const ShipmentReceiptModal: React.FC<ShipmentReceiptModalProps> = ({ isOpen, onC
                 )}
 
                 {/* Document References */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Challan Number</label>
                     <input
@@ -164,6 +170,15 @@ const ShipmentReceiptModal: React.FC<ShipmentReceiptModalProps> = ({ isOpen, onC
                     />
                   </div>
                   <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Challan Date</label>
+                    <input
+                      type="date"
+                      value={challanDate}
+                      onChange={(e) => setChallanDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Invoice Number</label>
                     <input
                       type="text"
@@ -171,6 +186,15 @@ const ShipmentReceiptModal: React.FC<ShipmentReceiptModalProps> = ({ isOpen, onC
                       onChange={(e) => setInvoiceNumber(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
                       placeholder="INV-123"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Invoice Date</label>
+                    <input
+                      type="date"
+                      value={invoiceDate}
+                      onChange={(e) => setInvoiceDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
                     />
                   </div>
                   <div className="col-span-2 md:col-span-1">

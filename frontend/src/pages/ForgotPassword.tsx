@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, ArrowLeft, Key, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import BrandLogo from '../components/BrandLogo';
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -28,7 +29,7 @@ const ForgotPassword: React.FC = () => {
     <div className="min-h-screen flex bg-slate-50 font-sans">
       <div className="hidden lg:flex lg:w-1/2 bg-blue-600 items-center justify-center p-12 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8">
-           <div className="text-2xl font-bold tracking-tight opacity-50">GLOBUZINC HRMS</div>
+           <BrandLogo size="sm" />
         </div>
         <div className="relative z-10 max-w-md text-center">
           <Key className="w-20 h-20 mx-auto mb-8 opacity-20" />

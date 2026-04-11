@@ -8,11 +8,13 @@ import {
   Settings, 
   LogOut,
   ShieldCheck,
-  Activity
+  Activity,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { PERMISSIONS } from '../constants/permissions';
+import BrandLogo from './BrandLogo';
 
 const Sidebar: React.FC = () => {
   const { logout, user, hasPermission } = useAuth();
@@ -26,6 +28,7 @@ const Sidebar: React.FC = () => {
 
   const adminItems = [
     { icon: Settings, label: 'Admin Config', path: '/admin-config', permission: PERMISSIONS.ADMIN_CONFIG },
+    { icon: BarChart3, label: 'Reports', path: '/reports', permission: PERMISSIONS.INVENTORY_VIEW },
     { icon: Activity, label: 'System Health', path: '/debug', permission: PERMISSIONS.SYSTEM_HEALTH },
     { icon: ShieldCheck, label: 'Audit Logs', path: '/audit', permission: PERMISSIONS.AUDIT_VIEW },
   ];
@@ -36,11 +39,9 @@ const Sidebar: React.FC = () => {
 
   return (
     <aside className="w-64 bg-card text-muted-foreground h-screen sticky top-0 flex flex-col border-r border-border">
-      <div className="p-6 border-b border-border">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight italic">
-          Globuzinc
-        </h1>
-        <p className="text-muted-foreground/60 mt-1 uppercase tracking-widest font-semibold text-[10px]">ERP Procurement Engine</p>
+      <div className="p-6 border-b border-border flex flex-col items-center justify-center">
+        <BrandLogo size="md" />
+        <p className="text-[10px] text-muted-foreground/40 font-black uppercase tracking-[0.3em] mt-3">Procurement Engine</p>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 text-muted-foreground">

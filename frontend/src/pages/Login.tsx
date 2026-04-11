@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, LogIn, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle, ArrowRight } from 'lucide-react';
+import BrandLogo from '../components/BrandLogo';
 
 const Login: React.FC = () => {
   const { login } = useAuth();
@@ -40,15 +41,7 @@ const Login: React.FC = () => {
       >
         {/* Logo/Brand Header */}
         <div className="text-center mb-10">
-          <motion.div 
-            initial={{ scale: 0.8, rotate: -10 }}
-            animate={{ scale: 1, rotate: 0 }}
-            className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 backdrop-blur-2xl rounded-[2.5rem] border border-primary/20 shadow-2xl shadow-primary/20 mb-6"
-          >
-            <ShieldCheck size={40} className="text-primary" strokeWidth={2.5} />
-          </motion.div>
-          <h1 className="text-5xl font-black text-foreground tracking-tighter mb-2">Globuz<span className="text-primary">HRMS</span></h1>
-          <p className="text-muted-foreground font-bold uppercase tracking-[0.3em] text-[10px] opacity-60">System Intelligence Engine v2.0</p>
+          <BrandLogo size="xl" showTagline={true} />
         </div>
 
         {/* Login Card */}

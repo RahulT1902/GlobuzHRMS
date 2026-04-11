@@ -14,7 +14,7 @@ const router = Router();
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 100, // Temporarily increased for development recovery
   message: { success: false, message: "Too many login attempts. Try again in 15 minutes.", data: null, error: null },
   standardHeaders: true,
   legacyHeaders: false,

@@ -64,27 +64,27 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({ isOpe
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          className="bg-card border border-border rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         >
           {/* Header */}
-          <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+          <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
             <div>
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <Package className="text-blue-500" />
                 Ledger: {product?.name}
               </h2>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 SKU: {product?.sku}
               </p>
             </div>
             <div className="flex items-center gap-6">
               <div className="text-right">
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Current Stock</p>
-                <p className="text-2xl font-bold text-white">{product?.closingStock}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Current Stock</p>
+                <p className="text-2xl font-bold text-foreground">{product?.closingStock}</p>
               </div>
               <button 
                 onClick={onClose} 
-                className="text-slate-400 hover:text-white transition-colors bg-slate-800 p-2 rounded-full"
+                className="text-muted-foreground hover:text-foreground transition-colors bg-secondary p-2 rounded-full"
               >
                 <X size={20} />
               </button>
@@ -105,15 +105,15 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({ isOpe
               </div>
             ) : transactions.length === 0 ? (
               <div className="p-12 text-center">
-                <div className="mx-auto w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center mb-3">
-                  <Package className="text-slate-500" size={24} />
+                <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
+                  <Package className="text-muted-foreground" size={24} />
                 </div>
-                <p className="text-slate-300 font-medium">No ledger entries found.</p>
-                <p className="text-slate-500 text-sm mt-1">Stock adjustments will appear here.</p>
+                <p className="text-card-foreground font-medium">No ledger entries found.</p>
+                <p className="text-muted-foreground text-sm mt-1">Stock adjustments will appear here.</p>
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-800/80 text-xs uppercase text-slate-400 border-b border-slate-700 sticky top-0 backdrop-blur-md">
+                <thead className="bg-muted/50 text-xs uppercase text-muted-foreground border-b border-border sticky top-0 backdrop-blur-md">
                   <tr>
                     <th className="px-6 py-4 font-semibold">Date & Time</th>
                     <th className="px-6 py-4 font-semibold">Activity</th>
@@ -122,17 +122,17 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({ isOpe
                     <th className="px-6 py-4 font-semibold text-right">Running Bal</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-border">
                   {transactions.map((tx, idx) => {
                     const isPositive = Number(tx.quantity) > 0 && !["SALES_OUT", "MANUAL_OUT"].includes(tx.type);
                     
                     return (
-                      <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors">
+                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <p className="text-sm text-white font-medium">
+                          <p className="text-sm text-foreground font-medium">
                             {new Date(tx.createdAt).toLocaleDateString()}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-muted-foreground">
                             {new Date(tx.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </p>
                         </td>
@@ -143,16 +143,16 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({ isOpe
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm font-semibold text-white">{tx.referenceName || "—"}</p>
-                          <p className="text-xs text-slate-500">{tx.notes ? tx.notes : (tx.referenceId ? `Ref: ${tx.referenceId.slice(0, 8)}` : "")}</p>
+                          <p className="text-sm font-semibold text-foreground">{tx.referenceName || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{tx.notes ? tx.notes : (tx.referenceId ? `Ref: ${tx.referenceId.slice(0, 8)}` : "")}</p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className={`text-sm font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'} flex items-center justify-end gap-1`}>
+                          <span className={`text-sm font-bold ${isPositive ? 'text-emerald-500' : 'text-rose-500'} flex items-center justify-end gap-1`}>
                             {isPositive ? '+' : '-'}{Math.abs(tx.quantity)}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className={`text-sm font-black ${idx === 0 ? 'text-white bg-slate-800 px-3 py-1 rounded-lg' : 'text-slate-300'}`}>
+                          <span className={`text-sm font-black ${idx === 0 ? 'text-foreground bg-secondary px-3 py-1 rounded-lg' : 'text-muted-foreground'}`}>
                             {tx.closingStock}
                           </span>
                         </td>

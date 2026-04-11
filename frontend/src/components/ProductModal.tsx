@@ -19,6 +19,7 @@ interface Variant {
   sku: string;
   purchasePrice: number;
   initialStock: number;
+  purchaseDate: string;
   error?: string; // For highlighting failures
 }
 
@@ -39,10 +40,72 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
   const [currentSku, setCurrentSku] = useState('');
   const [currentPrice, setCurrentPrice] = useState('');
   const [currentStock, setCurrentStock] = useState('0');
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customValues, setCustomValues] = useState<Record<number, string>>({});
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // MAX Depth Guard
+  const MAX_DEPTH = 6;
+
+  // memoize category children for performance
+  const childrenMap = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    categories.forEach(c => {
+      const pid = c.parentId || 'root';
+      if (!map.has(pid)) map.set(pid, []);
+      map.get(pid)?.push(c);
+    });
+    return map;
+  }, [categories]);
+
+  const getChildren = (parentId: string | null) => childrenMap.get(parentId || 'root') || [];
+
+  const handleCategoryChange = React.useCallback((index: number, value: string) => {
+    setVariants(prev => prev); // trigger re-renders if needed
+    setCurrentPath(prev => {
+      const next = prev.slice(0, index);
+      if (value) next[index] = value;
+      return next;
+    });
+
+    // Clean up custom values for reset levels
+    setCustomValues(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        if (Number(k) >= index) delete next[Number(k)];
+      });
+      return next;
+    });
+
+    // Smooth scroll reset to start when high-level changes
+    if (index === 0 && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    }
+  }, []);
+
+  const handleChipClick = (index: number) => {
+    setCurrentPath(prev => prev.slice(0, index + 1));
+    setCustomValues(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        if (Number(k) > index) delete next[Number(k)];
+      });
+      return next;
+    });
+  };
+
+  const normalizeToken = (s: string) => {
+    return s
+      .toUpperCase()
+      .replace(/\bX\b/g, 'X') // Keep dimension X clean
+      .replace(/[^A-Z0-9]+/g, '-') // Non-alphanumeric to dash
+      .replace(/-+/g, '-') // Collapse dashes
+      .replace(/^-|-$/g, ''); // Trim dashes
+  };
 
   // 1. Fetch Configuration & Load Existing (if edit)
   useEffect(() => {
@@ -90,15 +153,18 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
   // 2. Auto-SKU Suggestion Logic
   useEffect(() => {
     if (productName && currentPath.length > 0) {
-      const prefix = productName.substring(0, 3).toUpperCase();
-      const pathCodes = currentPath.map(id => {
-        const name = categoryMap.get(id)?.name || '';
-        return name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase();
+      const prefix = normalizeToken(productName).substring(0, 3);
+      const pathCodes = currentPath.map((id, idx) => {
+        const cat = categoryMap.get(id);
+        if (cat?.name.toUpperCase() === 'CUSTOM' && customValues[idx]) {
+          return normalizeToken(customValues[idx]);
+        }
+        return normalizeToken(cat?.name || '').substring(0, 3);
       });
       const suggested = [prefix, ...pathCodes].join('-');
       setCurrentSku(suggested);
     }
-  }, [productName, currentPath, categoryMap]);
+  }, [productName, currentPath, categoryMap, customValues]);
 
   // 3. Variant Builder Actions
   const addVariant = () => {
@@ -107,38 +173,62 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
       return;
     }
 
-    // Check for duplicate path
+    // 1. Leaf Node Enforcement
+    const lastId = currentPath[currentPath.length - 1];
+    const children = getChildren(lastId);
+    if (children.length > 0) {
+      setError('Please select the most specific category (leaf level).');
+      return;
+    }
+
+    // 2. Duplicate Path Guard
     const isDuplicatePath = variants.some(v => JSON.stringify(v.categoryPath) === JSON.stringify(currentPath));
     if (isDuplicatePath) {
       setError('This category combination has already been added.');
       return;
     }
 
-    // Check for duplicate SKU in local list
+    // 3. Category Integrity Check
+    const isInvalidPath = currentPath.some(id => !categoryMap.has(id));
+    if (isInvalidPath) {
+      setError('One or more selected categories no longer exist. Please reselect.');
+      return;
+    }
+
+    // 4. Duplicate SKU in Staged Batch
     const isDuplicateSku = variants.some(v => v.sku.toUpperCase() === currentSku.toUpperCase());
     if (isDuplicateSku) {
       setError('SKU already added to the batch list.');
       return;
     }
 
-    const pathNames = currentPath.map(id => categoryMap.get(id)?.name || 'Unknown');
+    const pathNames = currentPath.map((id, idx) => {
+      const cat = categoryMap.get(id);
+      if (cat?.name.toUpperCase() === 'CUSTOM' && customValues[idx]) {
+        return `${cat.name}: ${customValues[idx]}`;
+      }
+      return cat?.name || 'Unknown';
+    });
     
     const newVariant: Variant = {
       categoryPath: [...currentPath],
       pathNames,
-      sku: currentSku.trim().toUpperCase(),
+      sku: normalizeToken(currentSku),
       purchasePrice: Number(currentPrice) || 0,
-      initialStock: Number(currentStock) || 0
+      initialStock: Number(currentStock) || 0,
+      purchaseDate: currentDate
     };
 
     setVariants([...variants, newVariant]);
     setError('');
     
-    // Reset builder (keep root category for convenience or reset fully)
+    // Reset builder (keep root for convenience or reset path?)
+    // reset path to encourage checking correctly
     setCurrentPath([]);
     setCurrentSku('');
     setCurrentPrice('');
     setCurrentStock('0');
+    setCurrentDate(new Date().toISOString().split('T')[0]);
   };
 
   const removeVariant = (index: number) => {
@@ -210,7 +300,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative bg-card border border-border w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="relative bg-card border border-border w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           >
             {/* Header */}
             <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-card/50 flex-shrink-0">
@@ -284,57 +374,108 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                 </div>
                 
                 <div className="bg-muted/30 border border-dashed border-border p-6 rounded-2xl space-y-6">
-                  {/* Cascading Path Select */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <span className="text-[9px] uppercase font-bold text-muted-foreground/60 ml-1">Primary Spec</span>
-                      <select
-                        className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
-                        value={currentPath[0] || ''}
-                        onChange={e => setCurrentPath(e.target.value ? [e.target.value] : [])}
-                      >
-                        <option value="">Select Category</option>
-                        {categories.filter(c => !c.parentId).map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
+                  {/* Dynamic Path Breadcrumbs (Interactive Chips) */}
+                  {currentPath.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap mb-2 animate-in fade-in duration-500">
+                      <span className="text-[10px] font-black uppercase text-muted-foreground/50 mr-2">Selected Path:</span>
+                      {currentPath.map((id, idx) => {
+                        const cat = categoryMap.get(id);
+                        const isCustom = cat?.name.toUpperCase() === 'CUSTOM';
+                        const displayValue = isCustom && customValues[idx] ? `${cat.name}: ${customValues[idx]}` : (cat?.name || '...');
+                        
+                        return (
+                          <React.Fragment key={`chip-${id}-${idx}`}>
+                            <button
+                              onClick={() => handleChipClick(idx)}
+                              className="px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-lg text-[10px] font-bold text-primary hover:bg-primary hover:text-white transition-all group relative"
+                              title="Click to backtrack to this level"
+                            >
+                              {displayValue}
+                              <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                            {idx < currentPath.length - 1 && <ChevronRight size={10} className="text-muted-foreground/30" />}
+                          </React.Fragment>
+                        );
+                      })}
                     </div>
+                  )}
 
-                    {[...Array(2)].map((_, i) => {
-                      const parentId = currentPath[i];
-                      if (!parentId) return null;
-                      const children = categories.filter(c => c.parentId === parentId);
-                      if (children.length === 0) return null;
+                  {/* Cascading Path Select (Horizontal Scroll) */}
+                  <div className="relative group/scroll">
+                    <div 
+                      ref={scrollContainerRef}
+                      className="flex items-end gap-4 overflow-x-auto pb-4 scrollbar-thin scroll-smooth mask-fade-right"
+                    >
+                      {/* Existing Levels */}
+                      {currentPath.map((selectedId, index) => {
+                        const parentId = index === 0 ? 'root' : currentPath[index - 1];
+                        const options = getChildren(parentId);
+                        const cat = categoryMap.get(selectedId);
+                        const isCustom = cat?.name.toUpperCase() === 'CUSTOM';
+                        
+                        return (
+                          <div key={`level-${index}-${selectedId || 'empty'}`} className="space-y-1.5 flex-shrink-0 w-52 animate-in slide-in-from-left-2 duration-300">
+                            <span className="text-[9px] uppercase font-bold text-muted-foreground/60 ml-1">
+                              {index === 0 ? 'Primary Category' : `Spec Level ${index + 1}`}
+                            </span>
+                            <div className="space-y-2">
+                              <select
+                                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary transition-all hover:border-muted-foreground/30"
+                                value={selectedId || ''}
+                                onChange={e => handleCategoryChange(index, e.target.value)}
+                              >
+                                <option value="">Select</option>
+                                {options.map(o => (
+                                  <option key={o.id} value={o.id}>{o.name}</option>
+                                ))}
+                              </select>
+                              
+                              {isCustom && (
+                                <input
+                                  className="w-full bg-blue-500/5 border border-blue-500/20 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 animate-in slide-in-from-top-1 duration-200 font-bold placeholder:italic placeholder:font-normal"
+                                  placeholder="Enter custom value..."
+                                  value={customValues[index] || ''}
+                                  onChange={e => setCustomValues(prev => ({ ...prev, [index]: e.target.value }))}
+                                  autoFocus
+                                />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
 
-                      return (
-                        <div key={i} className="space-y-1.5 animate-in slide-in-from-left-2 duration-300">
-                          <span className="text-[9px] uppercase font-bold text-muted-foreground/60 ml-1">
-                            {i === 0 ? 'Secondary Identifier' : 'Specific Spec'}
-                          </span>
-                          <select
-                            className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
-                            value={currentPath[i + 1] || ''}
-                            onChange={e => {
-                              const newPath = currentPath.slice(0, i + 1);
-                              if (e.target.value) newPath.push(e.target.value);
-                              setCurrentPath(newPath);
-                            }}
-                          >
-                            <option value="">Select Sub</option>
-                            {children.map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    })}
+                      {/* Next Level (Only if children exist and not at MAX_DEPTH) */}
+                      {(() => {
+                        const lastId = currentPath[currentPath.length - 1];
+                        const nextOptions = getChildren(lastId || 'root');
+                        const canShowNext = (currentPath.length === 0 || lastId) && nextOptions.length > 0 && currentPath.length < MAX_DEPTH;
+                        
+                        if (!canShowNext) return null;
+
+                        return (
+                          <div className="space-y-1.5 flex-shrink-0 w-52 animate-in zoom-in-95 duration-300">
+                            <span className="text-[9px] uppercase font-black text-blue-500/70 ml-1">Next Specification</span>
+                            <select
+                              className="w-full bg-background border border-blue-500/30 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 transition-all font-medium italic"
+                              value=""
+                              onChange={e => handleCategoryChange(currentPath.length, e.target.value)}
+                            >
+                              <option value="">Choose Sub...</option>
+                              {nextOptions.map(o => (
+                                <option key={o.id} value={o.id}>{o.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end pt-4 border-t border-border/10">
                     <div className="space-y-1.5 md:col-span-2">
-                      <span className="text-[9px] uppercase font-bold text-muted-foreground/60 ml-1">SKU Identifier</span>
+                    <span className="text-[9px] uppercase font-bold text-muted-foreground/60 ml-1">SKU Identifier</span>
                       <input
-                        className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary font-mono"
+                        className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary font-mono font-bold"
                         placeholder="AUTO-GENERATED"
                         value={currentSku}
                         onChange={e => setCurrentSku(e.target.value)}
@@ -360,10 +501,19 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                         onChange={e => setCurrentStock(e.target.value)}
                       />
                     </div>
+                    <div className="space-y-1.5">
+                      <span className="text-[9px] uppercase font-bold text-muted-foreground/60 ml-1">Acq. Date</span>
+                      <input
+                        type="date"
+                        className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-xs outline-none focus:border-primary"
+                        value={currentDate}
+                        onChange={e => setCurrentDate(e.target.value)}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={addVariant}
-                      className="h-[42px] bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/10"
+                      className="h-[42px] bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/10 sticky right-0 z-10"
                     >
                       <Plus size={16} /> Add Variant
                     </button>

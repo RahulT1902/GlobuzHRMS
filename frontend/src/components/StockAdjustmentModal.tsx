@@ -70,27 +70,27 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
           />
           
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            className="relative bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
           >
             {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+            <div className="px-6 py-5 border-b border-border flex justify-between items-center bg-muted/30">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
                   <Package size={20} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white">Stock Adjustment</h3>
-                  <p className="text-slate-500 text-xs truncate max-w-[200px]">{product.name} ({product.sku})</p>
+                  <h3 className="font-bold text-foreground">Stock Adjustment</h3>
+                  <p className="text-muted-foreground text-xs truncate max-w-[200px]">{product.name} ({product.sku})</p>
                 </div>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+              <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -104,9 +104,9 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
               )}
 
               {/* Current Stock Snapshot */}
-              <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-2xl flex justify-between items-center mb-2">
-                 <span className="text-slate-400 text-sm">Current Level</span>
-                 <span className="text-xl font-black text-white">{product.closingStock} <span className="text-xs text-slate-500 font-normal uppercase">{product.unit?.name || 'Units'}</span></span>
+              <div className="bg-muted/10 border border-border p-4 rounded-2xl flex justify-between items-center mb-2">
+                 <span className="text-muted-foreground text-sm">Current Level</span>
+                 <span className="text-xl font-black text-foreground">{product.closingStock} <span className="text-xs text-muted-foreground font-normal uppercase">{product.unit?.name || 'Units'}</span></span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -118,8 +118,8 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
                   }}
                   className={`flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
                     !isOut 
-                    ? 'bg-emerald-600/10 border-emerald-500 text-emerald-400' 
-                    : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                    ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500 shadow-sm' 
+                    : 'bg-background border-border text-muted-foreground hover:border-muted-foreground/30'
                   }`}
                 >
                   <TrendingUp size={18} />
@@ -133,8 +133,8 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
                   }}
                   className={`flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
                     isOut 
-                    ? 'bg-rose-600/10 border-rose-500 text-rose-400' 
-                    : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                    ? 'bg-rose-500/10 border-rose-500 text-rose-500 shadow-sm' 
+                    : 'bg-background border-border text-muted-foreground hover:border-muted-foreground/30'
                   }`}
                 >
                   <TrendingDown size={18} />
@@ -144,9 +144,9 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1">Usage Type</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Usage Type</label>
                   <select
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all appearance-none"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all appearance-none"
                     value={`${formData.usageType}:${formData.referenceType}`}
                     onChange={e => {
                       const [uType, rType] = e.target.value.split(':');
@@ -170,12 +170,12 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1">Quantity</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Quantity</label>
                   <input
                     required
                     type="number"
                     min="1"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-bold"
                     value={formData.quantity}
                     onChange={e => setFormData({...formData, quantity: parseInt(e.target.value) || 0})}
                   />
@@ -183,14 +183,14 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">
                   {formData.referenceType === 'CLIENT' ? 'Client / Project Name' : 'Reference Name (Optional)'}
                 </label>
                 <input
                   required={formData.referenceType === 'CLIENT'}
                   type="text"
                   placeholder={formData.referenceType === 'CLIENT' ? 'e.g., Alpha Project' : 'e.g., Jane Doe'}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                   value={formData.referenceName}
                   onChange={e => setFormData({...formData, referenceName: e.target.value})}
                 />
@@ -198,12 +198,12 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
 
               {!isOut && (
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1">Unit Cost (₹) (Optional)</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Unit Cost (₹) (Optional)</label>
                   <input
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     value={formData.unitCost}
                     onChange={e => setFormData({...formData, unitCost: e.target.value})}
                   />
@@ -211,11 +211,11 @@ const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ isOpen, onC
               )}
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1 flex items-center gap-2">
                    <Clipboard size={12} /> Notes / Remarks
                 </label>
                 <textarea
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all h-20 resize-none"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all h-20 resize-none text-sm"
                   placeholder="Additional context..."
                   value={formData.notes}
                   onChange={e => setFormData({...formData, notes: e.target.value})}

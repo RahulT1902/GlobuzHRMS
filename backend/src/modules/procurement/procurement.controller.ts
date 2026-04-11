@@ -133,7 +133,7 @@ export const markAsOrdered = async (req: Request, res: Response) => {
       
       sendEmail({
         to: updatedOrder.vendor.email,
-        from: process.env.SYSTEM_EMAIL_FROM || "procurement@globuz.com",
+        from: process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev",
         replyTo: creatorEmail || "noreply@globuz.com",
         subject: `Purchase Order Issued: PO-${updatedOrder.id.slice(0, 8).toUpperCase()}`,
         html
@@ -150,7 +150,7 @@ export const receiveShipment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
-    const { challanNumber, invoiceNumber, receivedItems, receivedAt } = req.body;
+    const { challanNumber, invoiceNumber, receivedItems, receivedAt, challanDate, invoiceDate } = req.body;
 
     const order = await prisma.procurementOrder.findUnique({ 
       where: { id: String(id) },
@@ -189,13 +189,27 @@ export const receiveShipment = async (req: Request, res: Response) => {
       }
 
       for (const [dateStr, itemsInDateGroup] of Object.entries(itemsByDate)) {
-        const currentShipmentDate = new Date(dateStr);
+        const now = new Date();
+        let currentShipmentDate = new Date(dateStr);
+        
+        // Fix 05:30 AM Bug: If dateStr is just YYYY-MM-DD, it parses as UTC midnight.
+        // We should use current time if it's for today, or end-of-day to keep it logically sequenced.
+        if (dateStr.length <= 10) {
+          const todayStr = now.toISOString().split('T')[0];
+          if (dateStr === todayStr) {
+            currentShipmentDate = now;
+          } else {
+            currentShipmentDate.setUTCHours(23, 59, 59, 999);
+          }
+        }
         
         const shipment = await tx.procurementShipment.create({
           data: {
             orderId: order.id,
             challanNumber: challanNumber || null,
+            challanDate: challanDate ? new Date(challanDate) : null,
             invoiceNumber: invoiceNumber || null,
+            invoiceDate: invoiceDate ? new Date(invoiceDate) : null,
             createdById: userId,
             receivedAt: currentShipmentDate
           }
@@ -225,19 +239,13 @@ export const receiveShipment = async (req: Request, res: Response) => {
             data: { receivedQuantity: nextReceivedQty }
           });
 
-          // Ledger execution per shipment
-          const lastTx: any[] = await tx.$queryRaw`
-            SELECT "closingStock" FROM "InventoryTransaction" WHERE "productId" = ${item.productId} ORDER BY "createdAt" DESC LIMIT 1 FOR UPDATE
-          `;
+          // Accurate Stock Logic: Always use the latest product snapshot as the baseline
+          const product = await tx.product.findUnique({
+            where: { id: item.productId },
+            select: { closingStock: true }
+          });
           
-          let currentStock = 0;
-          if (lastTx && lastTx.length > 0) {
-            currentStock = lastTx[0].closingStock;
-          } else {
-            const productData = await tx.product.findUnique({ where: { id: String(item.productId) } });
-            currentStock = productData?.closingStock || 0;
-          }
-
+          const currentStock = product?.closingStock || 0;
           const newStock = currentStock + incomingQty;
 
           await tx.inventoryTransaction.create({

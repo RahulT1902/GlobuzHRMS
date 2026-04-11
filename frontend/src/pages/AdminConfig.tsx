@@ -132,8 +132,8 @@ const TreeNodeBuilder: React.FC<{
 };
 
 const AdminConfig: React.FC = () => {
-  const { hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState<'inventory' | 'vendors' | 'rules' | 'users' | 'roles'>('inventory');
+  const { hasPermission, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState<'inventory' | 'vendors' | 'rules' | 'users' | 'roles' | 'persistence'>('inventory');
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // Master Data States
@@ -339,6 +339,7 @@ const AdminConfig: React.FC = () => {
     { id: 'users' as const, label: 'User Management', icon: <Users size={18}/>, permission: PERMISSIONS.USER_MANAGE },
     { id: 'roles' as const, label: 'Role Governance', icon: <Shield size={18}/>, permission: PERMISSIONS.ADMIN_CONFIG },
     { id: 'rules' as const, label: 'Governance Rules', icon: <ShieldCheck size={18}/>, permission: PERMISSIONS.ADMIN_CONFIG },
+    { id: 'persistence' as const, label: 'Data Forge', icon: <Database size={18}/>, permission: PERMISSIONS.ADMIN_CONFIG },
   ];
 
   const authorizedTabs = tabs.filter(t => hasPermission(t.permission));
@@ -358,7 +359,7 @@ const AdminConfig: React.FC = () => {
 
       <div className="flex flex-wrap items-center gap-2 p-1.5 bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl w-fit glass">
         {authorizedTabs.map(tab => (
-           <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-3 px-6 py-3 rounded-xl transition-all duration-300 relative group overflow-hidden ${activeTab === tab.id ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-105 z-10' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary'}`}>
+           <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-3 px-6 py-3 rounded-xl transition-all duration-300 relative group overflow-hidden ${activeTab === tab.id ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-105 z-10' : 'text-muted-foreground hover:bg-primary/5 hover:text-primary'}`}>
               <div className={activeTab === tab.id ? 'animate-bounce-slow' : 'opacity-60 group-hover:opacity-100 transition-opacity'}>{tab.icon}</div>
               <span className="text-xs font-black uppercase tracking-widest">{tab.label}</span>
               {activeTab === tab.id && <motion.div layoutId="tab-glow" className="absolute inset-0 bg-white/10 opacity-50" />}
@@ -369,6 +370,10 @@ const AdminConfig: React.FC = () => {
       <AnimatePresence mode="wait">
         <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
           
+          {activeTab === 'persistence' && (
+            <DataForgeSection showMsg={showMsg} logout={logout} />
+          )}
+
           {activeTab === 'inventory' && (
             <div className="grid md:grid-cols-2 gap-8">
               <ConfigSection title="Measurement Units" items={units} icon={<Database size={20} />} onAdd={() => openAddModal('unit')} onEdit={(it) => openEditModal('unit', it)} onDelete={(id) => handleDelete('unit', id)} />
@@ -576,7 +581,7 @@ const ConfigSection: React.FC<{ title: string, items: MasterItem[], icon: React.
       {items.length === 0 && (
         <div className="py-12 flex flex-col items-center justify-center text-muted-foreground opacity-30 italic">
           <Cpu size={32} className="mb-3" />
-          <p className="text-[10px] font-black uppercase tracking-widest">Registry Empty</p>
+          <p className="text-[10px] font-black uppercase tracking-widest Registry Empty"></p>
         </div>
       )}
     </div>
@@ -596,5 +601,136 @@ const RuleGroup: React.FC<{ title: string, rules: any, group: string, onToggle: 
     ))}
   </div>
 );
+
+// DATA FORGE COMPONENT
+const DataForgeSection: React.FC<{ showMsg: any, logout: () => void }> = ({ showMsg, logout }) => {
+  const [snapshots, setSnapshots] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [opLoading, setOpLoading] = useState(false);
+
+  const fetchSnapshots = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/system/snapshots');
+      setSnapshots(data.data);
+    } catch (err) {
+      showMsg('error', 'Failed to load snapshots');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchSnapshots(); }, []);
+
+  const handleSnapshot = async (mode: 'CORE' | 'FULL') => {
+    setOpLoading(true);
+    try {
+      await api.post('/system/snapshot', { mode });
+      showMsg('success', `${mode} Snapshot created successfully`);
+      fetchSnapshots();
+    } catch (err) {
+      showMsg('error', 'Failed to create snapshot');
+    } finally {
+      setOpLoading(false);
+    }
+  };
+
+  const handleRestore = async (filename: string) => {
+    if (!window.confirm(`⚠️ CRITICAL WARNING: This will WIPE your current database and restore state from ${filename}. This action is IRREVERSIBLE. Are you ABSOLUTELY sure?`)) return;
+    
+    setOpLoading(true);
+    try {
+      await api.post('/system/restore', { filename });
+      showMsg('success', 'System restored successfully! Terminating session for security...');
+      
+      // Delay slightly for user to read message, then force logout
+      setTimeout(() => {
+        logout();
+      }, 3000);
+    } catch (err: any) {
+      showMsg('error', err.response?.data?.message || 'Restoration failed due to structural mismatch');
+    } finally {
+      setOpLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-card/60 backdrop-blur-xl border border-border/50 rounded-[2.5rem] p-12 glass overflow-hidden relative">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-16">
+        <div>
+          <h3 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-4">
+             <div className="p-3 bg-primary/10 text-primary rounded-2xl"><Edit2 size={24} /></div>
+             Data Forge Console
+          </h3>
+          <p className="text-muted-foreground mt-2 font-medium opacity-80">Manage database persistence, create structural snapshots, and revert system states.</p>
+        </div>
+        <div className="flex gap-4">
+           <button 
+             disabled={opLoading}
+             onClick={() => handleSnapshot('CORE')}
+             className="px-6 py-4 bg-secondary text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-muted transition-all flex items-center gap-3 disabled:opacity-50"
+           >
+             <CheckCircle2 size={18} /> Quick Snapshot
+           </button>
+           <button 
+             disabled={opLoading}
+             onClick={() => handleSnapshot('FULL')}
+             className="px-6 py-4 bg-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 transition-all flex items-center gap-3 disabled:opacity-50"
+           >
+             <Save size={18} /> Master Snapshot
+           </button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/60 mb-6">Available Recovery Points</h4>
+        
+        {loading ? (
+           <div className="py-20 flex justify-center"><Cpu className="animate-spin text-primary" size={40} /></div>
+        ) : snapshots.length === 0 ? (
+           <div className="py-20 border-2 border-dashed border-border/50 rounded-[2rem] flex flex-col items-center justify-center text-muted-foreground opacity-40 italic">
+              <Database size={48} className="mb-4" />
+              <p className="text-sm font-bold uppercase tracking-widest">No manual snapshots identified</p>
+           </div>
+        ) : (
+          <div className="grid gap-4">
+            {snapshots.map(s => (
+              <div key={s.filename} className="p-6 bg-background border border-border/50 rounded-3xl flex items-center justify-between group hover:border-primary/40 transition-all">
+                <div className="flex items-center gap-6">
+                  <div className={`p-4 rounded-2xl ${s.filename.includes('core') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary/10 text-primary'}`}>
+                    <Truck size={24} />
+                  </div>
+                  <div>
+                    <div className="font-mono text-[11px] font-black text-foreground uppercase tracking-tighter">{s.filename}</div>
+                    <div className="flex items-center gap-4 mt-1">
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase">{new Date(s.createdAt).toLocaleString()}</span>
+                      <span className="w-1 h-1 bg-border rounded-full" />
+                      <span className="text-[10px] text-muted-foreground font-mono">{(s.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  disabled={opLoading}
+                  onClick={() => handleRestore(s.filename)}
+                  className="px-6 py-3 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                >
+                  Deploy Restore
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {opLoading && (
+        <div className="absolute inset-0 bg-background/60 backdrop-blur-md z-50 flex flex-col items-center justify-center">
+            <Cpu className="animate-spin text-primary mb-6" size={64} />
+            <h4 className="text-xl font-black text-foreground uppercase tracking-widest">Reconstructing Data Layer</h4>
+            <p className="text-muted-foreground mt-2 animate-pulse uppercase tracking-[0.3em] text-[10px]">Do not close this window</p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default AdminConfig;

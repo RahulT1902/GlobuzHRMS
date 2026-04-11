@@ -10,6 +10,10 @@ import configRoutes from "./modules/config/config.routes";
 import userRoutes from "./modules/users/user.routes";
 import roleRoutes from "./modules/roles/role.routes";
 import debugRoutes from "./modules/debug/debug.routes";
+import reportsRoutes from "./modules/reports/reports.routes";
+import systemRoutes from "./modules/system/system.routes";
+import auditRoutes from "./modules/audit/audit.routes";
+import { MaintenanceService } from "./services/maintenance.service";
 import { errorHandler } from "./middleware/error.middleware";
 import { apiResponse } from "./utils/apiResponse";
 
@@ -35,6 +39,9 @@ app.use("/api/config", configRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/debug", debugRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/system", systemRoutes);
+app.use("/api/audit", auditRoutes);
 
 // 404 handler
 app.use((_req, res) => {
@@ -43,6 +50,9 @@ app.use((_req, res) => {
 
 // Global error handler
 app.use(errorHandler);
+
+// Start background maintenance cycles
+MaintenanceService.startMaintenanceCycle();
 
 app.listen(PORT, () => {
   console.log(`

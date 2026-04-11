@@ -9,6 +9,9 @@ import Dashboard from './pages/Dashboard';
 import Vendors from './pages/Vendors';
 import Procurement from './pages/Procurement';
 import AdminConfig from './pages/AdminConfig';
+import Reports from './pages/Reports';
+import Debug from './pages/Debug';
+import AuditLogs from './pages/AuditLogs';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import Layout from './components/Layout';
@@ -65,6 +68,30 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <Layout><AdminConfig /></Layout>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/reports" 
+                element={
+                  <ProtectedRoute>
+                    <Layout><Reports /></Layout>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/debug" 
+                element={
+                  <ProtectedRoute>
+                    <Layout><Debug /></Layout>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/audit" 
+                element={
+                  <ProtectedRoute>
+                    <Layout><AuditLogs /></Layout>
                   </ProtectedRoute>
                 } 
               />

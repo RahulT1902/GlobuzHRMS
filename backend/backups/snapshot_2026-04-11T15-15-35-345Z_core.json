@@ -1,0 +1,457 @@
+{
+  "meta": {
+    "createdAt": "2026-04-11T15:15:35.346Z",
+    "version": "1.0.1",
+    "schemaHash": "7077529a32792e0af6aa1cf7d7174c163d22bf1f7ddd6d3ca9213f8806ba7adf",
+    "mode": "CORE",
+    "environment": "development"
+  },
+  "data": {
+    "SystemSetting": [],
+    "Permission": [
+      {
+        "id": "42a8ff99-27e6-4594-8016-ecffe8b8a1d8",
+        "key": "INVENTORY_VIEW",
+        "label": "See Stock & Item List"
+      },
+      {
+        "id": "4b989427-990b-4a2d-9c8d-f2cdc8ac3d30",
+        "key": "INVENTORY_ADD",
+        "label": "Add New Stock Item"
+      },
+      {
+        "id": "c5f9a9a8-99ec-42fc-9ad9-56730b635a2c",
+        "key": "INVENTORY_EDIT",
+        "label": "Update Item Details (Names/Units)"
+      },
+      {
+        "id": "9dddaa68-b33e-4140-b6ae-d63b40a08f6e",
+        "key": "INVENTORY_DELETE",
+        "label": "Remove Items from Catalog"
+      },
+      {
+        "id": "4ef9e447-1eeb-4538-a6c6-a6626c177c2a",
+        "key": "INVENTORY_ADJUST",
+        "label": "Update Stock Levels & Counts"
+      },
+      {
+        "id": "754807cf-8e97-4f9e-b637-2c8dc824cde6",
+        "key": "PROCUREMENT_VIEW",
+        "label": "Track & View All Orders"
+      },
+      {
+        "id": "aab637d2-26c6-4a07-98a3-d63cbab2a286",
+        "key": "PROCUREMENT_CREATE",
+        "label": "Create New Purchase Orders"
+      },
+      {
+        "id": "85231360-29cd-45b4-a5b7-458d2aecd98e",
+        "key": "PROCUREMENT_APPROVE",
+        "label": "Approve Orders for Payment"
+      },
+      {
+        "id": "9b98da9f-5259-4481-a9ac-1912b0f228cb",
+        "key": "PROCUREMENT_RECEIVE",
+        "label": "Record Goods Received (Challan)"
+      },
+      {
+        "id": "f03dcff5-4295-4362-8a1d-57f78e1f59ca",
+        "key": "VENDOR_VIEW",
+        "label": "See Service Partners & Suppliers"
+      },
+      {
+        "id": "5127f1cf-de4f-42b0-a6c4-e9d3a3c94cea",
+        "key": "VENDOR_MANAGE",
+        "label": "Register & Manage Suppliers"
+      },
+      {
+        "id": "4c208d2e-1790-4fd4-b779-d66cd9a45913",
+        "key": "ADMIN_CONFIG",
+        "label": "System Settings & Master Data"
+      },
+      {
+        "id": "3284866d-b47b-4261-8441-c195d58c902d",
+        "key": "USER_MANAGE",
+        "label": "Manage Staff & Access"
+      },
+      {
+        "id": "ccef00f9-b35d-4296-843f-c8f247bb388d",
+        "key": "AUDIT_VIEW",
+        "label": "Check System History & Logs"
+      },
+      {
+        "id": "40fc628e-7b1c-4635-beae-5b3ef96d2c1c",
+        "key": "SYSTEM_HEALTH",
+        "label": "Check System Health Status"
+      }
+    ],
+    "Unit": [
+      {
+        "id": "cd2f5a05-d198-4451-abcf-14ca43f494fe",
+        "name": "Pieces",
+        "code": "PCS",
+        "isActive": true,
+        "sortOrder": 1,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      },
+      {
+        "id": "597fd095-5c37-49a2-aed0-4d510b094357",
+        "name": "Rolls",
+        "code": "ROLL",
+        "isActive": true,
+        "sortOrder": 9,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      },
+      {
+        "id": "34a5f792-3f07-40ac-b024-61633496e9ec",
+        "name": "Boxes",
+        "code": "BOX",
+        "isActive": true,
+        "sortOrder": 6,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      },
+      {
+        "id": "e5c71ca5-32b6-437f-a4bf-4bbba2583e88",
+        "name": "Kilograms",
+        "code": "KG",
+        "isActive": true,
+        "sortOrder": 2,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      },
+      {
+        "id": "8a91c6a5-cd5c-4eee-9b60-660c557509e0",
+        "name": "Liters",
+        "code": "LTR",
+        "isActive": true,
+        "sortOrder": 4,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      },
+      {
+        "id": "fd7b5fcf-e529-40d2-bd0e-b11d154f39a0",
+        "name": "Grams",
+        "code": "G",
+        "isActive": true,
+        "sortOrder": 3,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      },
+      {
+        "id": "9f05de09-1e6f-497a-9aa7-37a72211ca75",
+        "name": "Packets",
+        "code": "PKT",
+        "isActive": true,
+        "sortOrder": 8,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      },
+      {
+        "id": "2cef175d-87bd-4dc5-bfb6-930d581a9c57",
+        "name": "Meters",
+        "code": "M",
+        "isActive": true,
+        "sortOrder": 5,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      },
+      {
+        "id": "815eb185-47bb-4f08-80df-aee175d1f29d",
+        "name": "Sets",
+        "code": "SET",
+        "isActive": true,
+        "sortOrder": 7,
+        "createdAt": "2026-04-11T12:19:24.950Z",
+        "updatedAt": "2026-04-11T12:19:24.950Z"
+      }
+    ],
+    "PaymentTerm": [
+      {
+        "id": "210a5bce-9345-41a7-988f-a977accc7935",
+        "name": "Net 15 Days",
+        "days": 15,
+        "isActive": true,
+        "sortOrder": 3,
+        "createdAt": "2026-04-11T12:19:43.588Z",
+        "updatedAt": "2026-04-11T12:19:43.588Z"
+      },
+      {
+        "id": "1db2c08a-affe-4f79-9e8c-eb55dc84a5f6",
+        "name": "Net 60 Days",
+        "days": 60,
+        "isActive": true,
+        "sortOrder": 5,
+        "createdAt": "2026-04-11T12:19:43.588Z",
+        "updatedAt": "2026-04-11T12:19:43.588Z"
+      },
+      {
+        "id": "6284d389-89d4-47a1-b009-bf4f3d76e382",
+        "name": "Advance Payment",
+        "days": 0,
+        "isActive": true,
+        "sortOrder": 7,
+        "createdAt": "2026-04-11T12:19:43.588Z",
+        "updatedAt": "2026-04-11T12:19:43.588Z"
+      },
+      {
+        "id": "34f5b66f-6a34-4c4b-947c-27d390e06247",
+        "name": "Net 90 Days",
+        "days": 90,
+        "isActive": true,
+        "sortOrder": 6,
+        "createdAt": "2026-04-11T12:19:43.588Z",
+        "updatedAt": "2026-04-11T12:19:43.588Z"
+      },
+      {
+        "id": "6b7f3274-a7f5-420a-9a61-c01536e12088",
+        "name": "Net 30 Days",
+        "days": 30,
+        "isActive": true,
+        "sortOrder": 4,
+        "createdAt": "2026-04-11T12:19:43.588Z",
+        "updatedAt": "2026-04-11T12:19:43.588Z"
+      },
+      {
+        "id": "60fbe776-50b8-4c1a-8ff9-620e14a65044",
+        "name": "Cash on Delivery",
+        "days": 0,
+        "isActive": true,
+        "sortOrder": 1,
+        "createdAt": "2026-04-11T12:19:43.588Z",
+        "updatedAt": "2026-04-11T12:19:43.588Z"
+      },
+      {
+        "id": "be9b778f-07e1-4c25-8f61-b861344a22e2",
+        "name": "Immediate",
+        "days": 0,
+        "isActive": true,
+        "sortOrder": 2,
+        "createdAt": "2026-04-11T12:19:43.588Z",
+        "updatedAt": "2026-04-11T12:19:43.588Z"
+      }
+    ],
+    "Category": [
+      {
+        "id": "c8e68063-9a35-47e0-9687-5a70760a7ffd",
+        "name": "IT Assets",
+        "type": "INVENTORY",
+        "isActive": true,
+        "sortOrder": 1,
+        "createdAt": "2026-04-11T12:19:28.599Z",
+        "updatedAt": "2026-04-11T12:19:28.599Z",
+        "parentId": null,
+        "normalizedName": "it assets"
+      },
+      {
+        "id": "0d462a2e-b11b-417a-8925-d44559d1a5b7",
+        "name": "Office Supplies",
+        "type": "INVENTORY",
+        "isActive": true,
+        "sortOrder": 2,
+        "createdAt": "2026-04-11T12:19:30.089Z",
+        "updatedAt": "2026-04-11T12:19:30.089Z",
+        "parentId": null,
+        "normalizedName": "office supplies"
+      },
+      {
+        "id": "51c0ccb6-3036-49fa-8c5a-11a301e6814c",
+        "name": "Furniture",
+        "type": "INVENTORY",
+        "isActive": true,
+        "sortOrder": 3,
+        "createdAt": "2026-04-11T12:19:31.584Z",
+        "updatedAt": "2026-04-11T12:19:31.584Z",
+        "parentId": null,
+        "normalizedName": "furniture"
+      },
+      {
+        "id": "2380dfa0-8e27-40e0-9e8b-3b313ab72164",
+        "name": "Raw Materials",
+        "type": "INVENTORY",
+        "isActive": true,
+        "sortOrder": 4,
+        "createdAt": "2026-04-11T12:19:33.070Z",
+        "updatedAt": "2026-04-11T12:19:33.070Z",
+        "parentId": null,
+        "normalizedName": "raw materials"
+      },
+      {
+        "id": "58fc1f9b-c94c-4225-b35b-572fe17f9d77",
+        "name": "Hardware",
+        "type": "INVENTORY",
+        "isActive": true,
+        "sortOrder": 1,
+        "createdAt": "2026-04-11T12:19:34.566Z",
+        "updatedAt": "2026-04-11T12:19:34.566Z",
+        "parentId": "c8e68063-9a35-47e0-9687-5a70760a7ffd",
+        "normalizedName": "hardware"
+      },
+      {
+        "id": "98c9ac42-a368-4a55-8b46-d898133d77df",
+        "name": "Software",
+        "type": "INVENTORY",
+        "isActive": true,
+        "sortOrder": 2,
+        "createdAt": "2026-04-11T12:19:36.055Z",
+        "updatedAt": "2026-04-11T12:19:36.055Z",
+        "parentId": "c8e68063-9a35-47e0-9687-5a70760a7ffd",
+        "normalizedName": "software"
+      },
+      {
+        "id": "d3f5b019-a917-4945-a741-4a556c27dd52",
+        "name": "Stationery",
+        "type": "INVENTORY",
+        "isActive": true,
+        "sortOrder": 1,
+        "createdAt": "2026-04-11T12:19:37.544Z",
+        "updatedAt": "2026-04-11T12:19:37.544Z",
+        "parentId": "0d462a2e-b11b-417a-8925-d44559d1a5b7",
+        "normalizedName": "stationery"
+      },
+      {
+        "id": "79784eb6-13a4-40af-b23c-ee2a76bdc298",
+        "name": "Strategic Partners",
+        "type": "VENDOR",
+        "isActive": true,
+        "sortOrder": 1,
+        "createdAt": "2026-04-11T12:19:39.034Z",
+        "updatedAt": "2026-04-11T12:19:39.034Z",
+        "parentId": null,
+        "normalizedName": "strategic partners"
+      },
+      {
+        "id": "03f08f0b-43ff-4ce1-9e0f-121cdbf2a4ee",
+        "name": "Service Providers",
+        "type": "VENDOR",
+        "isActive": true,
+        "sortOrder": 2,
+        "createdAt": "2026-04-11T12:19:40.548Z",
+        "updatedAt": "2026-04-11T12:19:40.548Z",
+        "parentId": null,
+        "normalizedName": "service providers"
+      },
+      {
+        "id": "50bdaab7-8dcd-4cdc-a714-890c5cdec455",
+        "name": "Logistics Agents",
+        "type": "VENDOR",
+        "isActive": true,
+        "sortOrder": 3,
+        "createdAt": "2026-04-11T12:19:42.031Z",
+        "updatedAt": "2026-04-11T12:19:42.031Z",
+        "parentId": null,
+        "normalizedName": "logistics agents"
+      }
+    ],
+    "Role": [
+      {
+        "id": "95a0608f-4d12-4c46-8ce8-b7df529837ba",
+        "name": "ADMIN",
+        "description": "Super Administrator Role configured via Codebase",
+        "isActive": true,
+        "createdAt": "2026-04-09T17:35:29.867Z",
+        "updatedAt": "2026-04-09T17:35:29.867Z"
+      }
+    ],
+    "User": [
+      {
+        "id": "2b0bf3fd-2d12-4bcb-9b25-cf2f821127bc",
+        "name": "Admin",
+        "email": "admin@globuzinc.com",
+        "passwordHash": "$2b$12$qftnPHlFHui58l0dKg7W..2ei0t.WPI.wnyo/PZQbWMH4VDguFAmK",
+        "role": "ADMIN",
+        "status": "ACTIVE",
+        "isFirstLogin": true,
+        "profileImage": null,
+        "createdAt": "2026-04-09T17:42:49.475Z",
+        "updatedAt": "2026-04-09T17:42:49.475Z",
+        "permissions": [],
+        "userPermissions": [],
+        "phone": "+919876543210",
+        "tokenVersion": 1
+      }
+    ],
+    "Vendor": [],
+    "Product": [],
+    "ProcurementOrder": [],
+    "PasswordReset": [],
+    "ProductImage": [],
+    "ProcurementItem": [],
+    "InventoryTransaction": [],
+    "ProcurementShipment": [],
+    "ProcurementShipmentItem": [],
+    "StockReconciliation": []
+  },
+  "junctions": {
+    "_PermissionToRole": [
+      {
+        "A": "42a8ff99-27e6-4594-8016-ecffe8b8a1d8",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "4b989427-990b-4a2d-9c8d-f2cdc8ac3d30",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "c5f9a9a8-99ec-42fc-9ad9-56730b635a2c",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "9dddaa68-b33e-4140-b6ae-d63b40a08f6e",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "4ef9e447-1eeb-4538-a6c6-a6626c177c2a",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "754807cf-8e97-4f9e-b637-2c8dc824cde6",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "aab637d2-26c6-4a07-98a3-d63cbab2a286",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "85231360-29cd-45b4-a5b7-458d2aecd98e",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "9b98da9f-5259-4481-a9ac-1912b0f228cb",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "f03dcff5-4295-4362-8a1d-57f78e1f59ca",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "5127f1cf-de4f-42b0-a6c4-e9d3a3c94cea",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "4c208d2e-1790-4fd4-b779-d66cd9a45913",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "3284866d-b47b-4261-8441-c195d58c902d",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "ccef00f9-b35d-4296-843f-c8f247bb388d",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      },
+      {
+        "A": "40fc628e-7b1c-4635-beae-5b3ef96d2c1c",
+        "B": "95a0608f-4d12-4c46-8ce8-b7df529837ba"
+      }
+    ],
+    "_RoleToUser": [
+      {
+        "A": "95a0608f-4d12-4c46-8ce8-b7df529837ba",
+        "B": "2b0bf3fd-2d12-4bcb-9b25-cf2f821127bc"
+      }
+    ]
+  }
+}

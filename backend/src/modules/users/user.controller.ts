@@ -83,8 +83,32 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       return apiResponse.error(res, "Security Constraint: Cannot deactivate your own administrative account", 403);
   }
 
-  const updateData: any = { name, email: email?.trim(), status };
-  if (phone) updateData.phone = normalizePhone(phone);
+  // Hardening: Identity Conflict Detection
+  const normalizedPhone = phone ? normalizePhone(phone) : undefined;
+  const normalizedEmail = email?.trim();
+
+  const conflictSearch: any[] = [];
+  if (normalizedPhone) conflictSearch.push({ phone: normalizedPhone });
+  if (normalizedEmail) conflictSearch.push({ email: normalizedEmail });
+
+  if (conflictSearch.length > 0) {
+    const conflict = await (prisma as any).user.findFirst({
+      where: {
+        AND: [
+          { id: { not: id } },
+          { OR: conflictSearch }
+        ]
+      }
+    });
+
+    if (conflict) {
+      const field = conflict.phone === normalizedPhone ? "Phone number" : "Email address";
+      return apiResponse.error(res, `${field} is already registered to another account`, 400);
+    }
+  }
+
+  const updateData: any = { name, email: normalizedEmail, status };
+  if (normalizedPhone) updateData.phone = normalizedPhone;
   
   let structuralChange = false;
 
