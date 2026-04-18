@@ -191,7 +191,7 @@ const InventoryList: React.FC = () => {
       </AnimatePresence>
 
       {/* Table Container */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-2xl">
+      <div className="bg-card border border-border rounded-2xl overflow-x-auto shadow-2xl">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-muted/50 border-b border-border">
@@ -293,7 +293,7 @@ const InventoryList: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right w-48">
-                    <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity min-h-[36px]">
+                    <div className="flex items-center justify-end space-x-2 opacity-70 group-hover:opacity-100 transition-opacity min-h-[36px]">
                       {hasPermission(PERMISSIONS.INVENTORY_VIEW) && (
                         <button 
                           onClick={() => { setSelectedHistoryProduct(item); setIsHistoryModalOpen(true); }}
