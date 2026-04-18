@@ -21,7 +21,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem('refresh_token');
-        const { data } = await axios.post('http://localhost:5000/api/auth/refresh', {
+        const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
           refreshToken,
         });
         localStorage.setItem('access_token', data.data.accessToken);
