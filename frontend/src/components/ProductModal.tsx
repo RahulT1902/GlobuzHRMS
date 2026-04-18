@@ -16,6 +16,7 @@ interface ProductModalProps {
 interface Variant {
   categoryPath: string[]; // List of IDs
   pathNames: string[];   // List of human names for UI
+  attributes?: Record<string, string>;
   sku: string;
   purchasePrice: number;
   initialStock: number;
@@ -42,6 +43,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
   const [currentStock, setCurrentStock] = useState('0');
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [customValues, setCustomValues] = useState<Record<number, string>>({});
+  const [attributes, setAttributes] = useState({ color: "", size: "", gsm: "" });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -150,21 +152,27 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
     }
   }, [isOpen, product]);
 
-  // 2. Auto-SKU Suggestion Logic
+  // 2. Auto-SKU Suggestion Logic (Deterministic & Grouped)
   useEffect(() => {
     if (productName && currentPath.length > 0) {
       const prefix = normalizeToken(productName).substring(0, 3);
-      const pathCodes = currentPath.map((id, idx) => {
+      const pathCodes = currentPath.map((id) => {
         const cat = categoryMap.get(id);
-        if (cat?.name.toUpperCase() === 'CUSTOM' && customValues[idx]) {
-          return normalizeToken(customValues[idx]);
-        }
         return normalizeToken(cat?.name || '').substring(0, 3);
       });
-      const suggested = [prefix, ...pathCodes].join('-');
+
+      // Append Attributes to SKU (Deterministic order)
+      const lastId = currentPath[currentPath.length - 1];
+      const lastCat = categoryMap.get(lastId);
+      const attrCodes = lastCat?.isCustom ? 
+        ['color', 'size', 'gsm']
+          .map(k => normalizeToken(attributes[k as keyof typeof attributes]))
+          .filter(Boolean) : [];
+
+      const suggested = [prefix, ...pathCodes, ...attrCodes].join('-');
       setCurrentSku(suggested);
     }
-  }, [productName, currentPath, categoryMap, customValues]);
+  }, [productName, currentPath, categoryMap, customValues, attributes]);
 
   // 3. Variant Builder Actions
   const addVariant = () => {
@@ -175,16 +183,48 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
 
     // 1. Leaf Node Enforcement
     const lastId = currentPath[currentPath.length - 1];
+    const lastCat = categoryMap.get(lastId);
     const children = getChildren(lastId);
-    if (children.length > 0) {
+    
+    // Custom-flagged categories are allowed to be "leaf" nodes even if they have sub-categories
+    if (children.length > 0 && !lastCat?.isCustom) {
       setError('Please select the most specific category (leaf level).');
       return;
     }
 
-    // 2. Duplicate Path Guard
-    const isDuplicatePath = variants.some(v => JSON.stringify(v.categoryPath) === JSON.stringify(currentPath));
-    if (isDuplicatePath) {
-      setError('This category combination has already been added.');
+    // 2. Duplicate Path + Attribute Guard
+    const leafId = currentPath[currentPath.length - 1];
+    const leafCat = categoryMap.get(leafId);
+    
+    // Normalize and clean attributes before storage
+    const cleanedAttr = Object.fromEntries(
+      Object.entries(attributes)
+        .filter(([_, v]) => v.trim() !== "")
+        .map(([k, v]) => [k, v.trim().toUpperCase()])
+    );
+
+    if (leafCat?.isCustom) {
+       if (!cleanedAttr.color || !cleanedAttr.gsm) {
+         setError('Color and GSM are required for custom items.');
+         return;
+       }
+    }
+
+    const currentKey = [
+      ...currentPath,
+      ...(leafCat?.isCustom ? ['color', 'size', 'gsm'].map(k => cleanedAttr[k]) : [])
+    ].filter(Boolean).join("|");
+
+    const isDuplicate = variants.some(v => {
+      const vKey = [
+        ...v.categoryPath,
+        ...(v.attributes ? ['color', 'size', 'gsm'].map(k => v.attributes![k]) : [])
+      ].filter(Boolean).join("|");
+      return vKey === currentKey;
+    });
+
+    if (isDuplicate) {
+      setError('This specific variation (path + attributes) already exists.');
       return;
     }
 
@@ -202,17 +242,15 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
       return;
     }
 
-    const pathNames = currentPath.map((id, idx) => {
+    const pathNames = currentPath.map((id) => {
       const cat = categoryMap.get(id);
-      if (cat?.name.toUpperCase() === 'CUSTOM' && customValues[idx]) {
-        return `${cat.name}: ${customValues[idx]}`;
-      }
       return cat?.name || 'Unknown';
     });
     
     const newVariant: Variant = {
       categoryPath: [...currentPath],
       pathNames,
+      attributes: leafCat?.isCustom ? cleanedAttr : undefined,
       sku: normalizeToken(currentSku),
       purchasePrice: Number(currentPrice) || 0,
       initialStock: Number(currentStock) || 0,
@@ -222,12 +260,12 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
     setVariants([...variants, newVariant]);
     setError('');
     
-    // Reset builder (keep root for convenience or reset path?)
-    // reset path to encourage checking correctly
+    // Reset builder (keep root for convenience)
     setCurrentPath([]);
     setCurrentSku('');
     setCurrentPrice('');
     setCurrentStock('0');
+    setAttributes({ color: "", size: "", gsm: "" });
     setCurrentDate(new Date().toISOString().split('T')[0]);
   };
 
@@ -300,7 +338,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative bg-card border border-border w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="relative bg-card border border-border w-full max-w-7xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           >
             {/* Header */}
             <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-card/50 flex-shrink-0">
@@ -410,8 +448,6 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                       {currentPath.map((selectedId, index) => {
                         const parentId = index === 0 ? 'root' : currentPath[index - 1];
                         const options = getChildren(parentId);
-                        const cat = categoryMap.get(selectedId);
-                        const isCustom = cat?.name.toUpperCase() === 'CUSTOM';
                         
                         return (
                           <div key={`level-${index}-${selectedId || 'empty'}`} className="space-y-1.5 flex-shrink-0 w-52 animate-in slide-in-from-left-2 duration-300">
@@ -429,26 +465,62 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                                   <option key={o.id} value={o.id}>{o.name}</option>
                                 ))}
                               </select>
-                              
-                              {isCustom && (
-                                <input
-                                  className="w-full bg-blue-500/5 border border-blue-500/20 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 animate-in slide-in-from-top-1 duration-200 font-bold placeholder:italic placeholder:font-normal"
-                                  placeholder="Enter custom value..."
-                                  value={customValues[index] || ''}
-                                  onChange={e => setCustomValues(prev => ({ ...prev, [index]: e.target.value }))}
-                                  autoFocus
-                                />
-                              )}
                             </div>
                           </div>
                         );
                       })}
 
+                      {/* Attribute Configuration (New) */}
+                      {(() => {
+                        const lastId = currentPath[currentPath.length - 1];
+                        const lastCat = categoryMap.get(lastId);
+                        if (!lastCat?.isCustom) return null;
+
+                        return (
+                          <>
+                            <div className="space-y-1.5 flex-shrink-0 w-40 animate-in slide-in-from-right-2 duration-300">
+                              <span className="text-[9px] uppercase font-bold text-primary/80 ml-1">Color *</span>
+                              <div className="space-y-2">
+                                <input
+                                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary font-bold uppercase transition-all"
+                                  placeholder="Red, Blue..."
+                                  value={attributes.color}
+                                  onChange={e => setAttributes(p => ({ ...p, color: e.target.value }))}
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1.5 flex-shrink-0 w-32 animate-in slide-in-from-right-3 duration-300">
+                              <span className="text-[9px] uppercase font-bold text-primary/70 ml-1">Size</span>
+                              <div className="space-y-2">
+                                <input
+                                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary font-bold uppercase transition-all"
+                                  placeholder="XL, 32..."
+                                  value={attributes.size}
+                                  onChange={e => setAttributes(p => ({ ...p, size: e.target.value }))}
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1.5 flex-shrink-0 w-28 animate-in slide-in-from-right-4 duration-300">
+                              <span className="text-[9px] uppercase font-bold text-primary/80 ml-1">GSM *</span>
+                              <div className="space-y-2">
+                                <input
+                                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary font-bold uppercase transition-all"
+                                  placeholder="200, 350..."
+                                  value={attributes.gsm}
+                                  onChange={e => setAttributes(p => ({ ...p, gsm: e.target.value }))}
+                                />
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
+
                       {/* Next Level (Only if children exist and not at MAX_DEPTH) */}
                       {(() => {
                         const lastId = currentPath[currentPath.length - 1];
+                        const lastCat = categoryMap.get(lastId);
                         const nextOptions = getChildren(lastId || 'root');
-                        const canShowNext = (currentPath.length === 0 || lastId) && nextOptions.length > 0 && currentPath.length < MAX_DEPTH;
+                        const canShowNext = (currentPath.length === 0 || lastId) && nextOptions.length > 0 && currentPath.length < MAX_DEPTH && !lastCat?.isCustom;
                         
                         if (!canShowNext) return null;
 
@@ -534,7 +606,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                     <table className="w-full text-sm text-left">
                       <thead className="bg-muted/50 border-b border-border">
                         <tr>
-                          <th className="px-4 py-3 font-bold text-muted-foreground text-[10px] uppercase">Technical Path</th>
+                          <th className="px-4 py-3 font-bold text-muted-foreground text-[10px] uppercase">Technical configuration</th>
                           <th className="px-4 py-3 font-bold text-muted-foreground text-[10px] uppercase">SKU</th>
                           <th className="px-4 py-3 font-bold text-muted-foreground text-[10px] uppercase">Rate</th>
                           <th className="px-4 py-3 font-bold text-muted-foreground text-[10px] uppercase text-center">Qty</th>
@@ -545,15 +617,34 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                       <tbody>
                         {variants.map((v, i) => (
                           <tr key={i} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${v.error ? 'bg-rose-500/5' : ''}`}>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col gap-1">
+                             <td className="px-4 py-3">
+                              <div className="flex flex-col gap-2">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   {v.pathNames.map((name, idx) => (
                                     <React.Fragment key={idx}>
                                       <span className="px-2 py-0.5 bg-background border border-border rounded-md text-[10px] font-bold">{name}</span>
-                                      {idx < v.pathNames.length - 1 && <ChevronRight size={10} className="text-muted-foreground/40" />}
+                                      {(idx < v.pathNames.length - 1 || v.attributes) && <ChevronRight size={10} className="text-muted-foreground/40" />}
                                     </React.Fragment>
                                   ))}
+                                  {v.attributes && (
+                                    <div className="flex items-center gap-1.5">
+                                      {v.attributes.color && (
+                                        <span className="px-2 py-0.5 bg-blue-500 text-white rounded-md text-[9px] font-black tracking-tight">{v.attributes.color}</span>
+                                      )}
+                                      {v.attributes.size && (
+                                        <ChevronRight size={10} className="text-muted-foreground/40" />
+                                      )}
+                                      {v.attributes.size && (
+                                        <span className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded-md text-[9px] font-black tracking-tight">{v.attributes.size}</span>
+                                      )}
+                                      {v.attributes.gsm && (
+                                        <ChevronRight size={10} className="text-muted-foreground/40" />
+                                      )}
+                                      {v.attributes.gsm && (
+                                        <span className="px-2 py-0.5 bg-emerald-500 text-white rounded-md text-[9px] font-black tracking-tight">{v.attributes.gsm} GSM</span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 {v.error && <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1 animate-pulse"><AlertCircle size={10}/> {v.error}</p>}
                               </div>

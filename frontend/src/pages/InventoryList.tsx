@@ -204,11 +204,11 @@ const InventoryList: React.FC = () => {
                 />
               </th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Asset & Identifier</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">Current Stock</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">Purchase Date</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">Purchase Price</th>
+              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center w-40">Current Stock</th>
+              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Purchase Date</th>
+              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Purchase Price</th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Category</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-right">Actions</th>
+              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-right w-80">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
@@ -258,13 +258,22 @@ const InventoryList: React.FC = () => {
                         </div>
                         <div>
                           <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{item.name}</p>
-                          <p className="text-[10px] font-mono text-muted-foreground uppercase">{item.sku}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-[10px] font-mono text-muted-foreground uppercase">{item.sku}</p>
+                            {item.attributes && Object.keys(item.attributes).length > 0 && (
+                              <div className="flex items-center gap-1.5 ml-1 border-l border-border/50 pl-2">
+                                {item.attributes.color && <span className="text-[8px] font-black uppercase text-blue-500">{item.attributes.color}</span>}
+                                {item.attributes.size && <span className="text-[8px] font-black uppercase text-slate-400">/ {item.attributes.size}</span>}
+                                {item.attributes.gsm && <span className="text-[8px] font-black uppercase text-emerald-500">/ {item.attributes.gsm} GSM</span>}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                  <td className="px-6 py-4 text-center w-40 whitespace-nowrap">
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors whitespace-nowrap ${
                       item.closingStock > (item.minThreshold || 10)
                       ? 'bg-primary/10 text-primary border-primary/20' 
                       : 'bg-red-500/10 text-red-500 border-red-500/20'
@@ -283,35 +292,35 @@ const InventoryList: React.FC = () => {
                       {item.category?.name || 'General'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <td className="px-6 py-4 text-right w-80">
+                    <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity min-h-[36px]">
                       {hasPermission(PERMISSIONS.INVENTORY_VIEW) && (
                         <button 
                           onClick={() => { setSelectedHistoryProduct(item); setIsHistoryModalOpen(true); }}
-                          className="p-2 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-lg transition-colors flex items-center gap-1 group/btn"
+                          className="px-2 py-1.5 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-xl transition-colors duration-200 flex items-center group/btn overflow-hidden border border-transparent hover:border-primary/20"
                           title="View Ledger / History"
                         >
-                          <Clock size={16} />
-                          <span className="text-[10px] font-bold uppercase hidden group-hover/btn:block">History</span>
+                          <Clock size={16} className="shrink-0" />
+                          <span className="max-w-0 overflow-hidden group-hover/btn:max-w-[75px] transition-all duration-500 ease-in-out text-[10px] font-black uppercase opacity-0 group-hover/btn:opacity-100 group-hover/btn:ml-2">History</span>
                         </button>
                       )}
                       {hasPermission(PERMISSIONS.INVENTORY_ADJUST) && (
                         <>
                           <button 
                             onClick={() => { setAdjustingProduct(item); setAdjustmentType('IN'); setIsAdjustModalOpen(true); }}
-                            className="p-2 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 rounded-lg transition-colors flex items-center gap-1 group/btn"
+                            className="px-2 py-1.5 hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 rounded-xl transition-colors duration-200 flex items-center group/btn overflow-hidden border border-transparent hover:border-emerald-500/20"
                             title="Add Stock (Restock)"
                           >
-                            <TrendingUp size={16} />
-                            <span className="text-[10px] font-bold uppercase hidden group-hover/btn:block">Restock</span>
+                            <TrendingUp size={16} className="shrink-0" />
+                            <span className="max-w-0 overflow-hidden group-hover/btn:max-w-[75px] transition-all duration-500 ease-in-out text-[10px] font-black uppercase opacity-0 group-hover/btn:opacity-100 group-hover/btn:ml-2">Restock</span>
                           </button>
                           <button 
                             onClick={() => { setAdjustingProduct(item); setAdjustmentType('OUT'); setIsAdjustModalOpen(true); }}
-                            className="p-2 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 rounded-lg transition-colors flex items-center gap-1 group/btn"
+                            className="px-2 py-1.5 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 rounded-xl transition-colors duration-200 flex items-center group/btn overflow-hidden border border-transparent hover:border-rose-500/20"
                             title="Utilize Stock (Subtract)"
                           >
-                            <TrendingDown size={16} />
-                            <span className="text-[10px] font-bold uppercase hidden group-hover/btn:block">Utilize</span>
+                            <TrendingDown size={16} className="shrink-0" />
+                            <span className="max-w-0 overflow-hidden group-hover/btn:max-w-[75px] transition-all duration-500 ease-in-out text-[10px] font-black uppercase opacity-0 group-hover/btn:opacity-100 group-hover/btn:ml-2">Utilize</span>
                           </button>
                         </>
                       )}

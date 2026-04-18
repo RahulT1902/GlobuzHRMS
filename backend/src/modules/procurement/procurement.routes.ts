@@ -3,6 +3,7 @@ import {
   createOrder, 
   submitOrder, 
   approveOrder, 
+  rejectOrder,
   markAsOrdered, 
   receiveShipment, 
   getOrders, 
@@ -23,8 +24,9 @@ router.post("/", authenticate, createOrder);
 // Submitting: PROCUREMENT or ADMIN
 router.put("/:id/submit", authenticate, authorize("PROCUREMENT", "ADMIN"), submitOrder);
 
-// Approving: ADMIN only
+// Approving/Rejecting: ADMIN only
 router.put("/:id/approve", authenticate, authorize("ADMIN"), approveOrder);
+router.put("/:id/reject", authenticate, authorize("ADMIN"), rejectOrder);
 
 // Moving to Ordered Phase
 router.put("/:id/order", authenticate, authorize("ADMIN", "PROCUREMENT"), markAsOrdered);

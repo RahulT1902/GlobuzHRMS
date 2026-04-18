@@ -143,8 +143,36 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({ isOpe
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm font-semibold text-foreground">{tx.referenceName || "—"}</p>
-                          <p className="text-xs text-muted-foreground">{tx.notes ? tx.notes : (tx.referenceId ? `Ref: ${tx.referenceId.slice(0, 8)}` : "")}</p>
+                          <p className="text-sm font-black text-foreground tracking-tight">
+                            {tx.type === 'PROCUREMENT_IN' && tx.referenceName && !tx.referenceName.includes(':') 
+                              ? `CH: ${tx.referenceName}` 
+                              : (tx.referenceName || "—")}
+                          </p>
+                          <div className="flex flex-col mt-0.5">
+                            <p className="text-[10px] text-muted-foreground font-medium italic">{tx.notes}</p>
+                            {tx.metadata && (typeof tx.metadata === 'object') && (
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 opacity-80">
+                                {tx.metadata.challanNumber && tx.metadata.challanNumber !== tx.referenceName && (
+                                  <span className="text-[9px] font-bold uppercase tracking-tighter bg-muted px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <span className="text-primary/50">CH:</span> {tx.metadata.challanNumber}
+                                  </span>
+                                )}
+                                {tx.metadata.invoiceNumber && (
+                                  <span className="text-[9px] font-bold uppercase tracking-tighter bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <span className="opacity-50">INV:</span> {tx.metadata.invoiceNumber}
+                                  </span>
+                                )}
+                                {tx.metadata.challanDate && (
+                                  <span className="text-[9px] font-bold uppercase tracking-tighter bg-muted px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <span className="text-primary/50">CH Dt:</span> {new Date(tx.metadata.challanDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short'})}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {!tx.notes && tx.referenceId && !tx.metadata && (
+                              <p className="text-[9px] text-muted-foreground opacity-40 uppercase tracking-widest mt-1">Ref: {tx.referenceId.slice(0, 8)}</p>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <span className={`text-sm font-bold ${isPositive ? 'text-emerald-500' : 'text-rose-500'} flex items-center justify-end gap-1`}>

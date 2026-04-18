@@ -62,7 +62,12 @@ export const getCategories = async (req: Request, res: Response) => {
   try {
     const { type } = req.query;
     const categories = await prisma.category.findMany({
-      where: type ? { type: type as string } : {},
+      where: {
+        AND: [
+          type ? { type: type as string } : {},
+          { isActive: true }
+        ]
+      },
       include: { parent: { select: { name: true } } },
       orderBy: { sortOrder: 'asc' },
     });
@@ -90,46 +95,59 @@ export const createCategoriesBatch = async (req: Request, res: Response) => {
     if (processedCategoryRequests.has(requestId)) return apiResponse.success(res, "Request already processed", null);
 
     const result = await prisma.$transaction(async (tx) => {
-      const createdNodes: any[] = [];
+      const keptIds = new Set<string>();
+      const processedNodes: any[] = [];
       
       const processNode = async (node: any, parentId: string | null = null, depth = 1) => {
         if (depth > 6) throw new Error(`Maximum hierarchy depth of 6 reached at "${node.name}"`);
         if (!node.name || !node.name.trim()) throw new Error("Category name cannot be empty");
 
         const normalized = normalize(node.name);
+        const categoryType = type || 'INVENTORY';
         let category;
 
-        // CHECK IF NODE EXISTS
-        const existingId = (node.clientId && isUUID(node.clientId)) ? node.clientId : null;
+        // 1. LOOKUP STRATEGY (clientId match OR localized name+parent match for revival)
+        const clientId = (node.clientId && isUUID(node.clientId)) ? node.clientId : null;
 
-        if (existingId) {
-          const match = await tx.category.findUnique({ where: { id: existingId } });
-          if (match) {
-            category = await tx.category.update({
-              where: { id: existingId },
-              data: {
-                name: node.name.trim(),
-                normalizedName: normalized,
-                parentId: parentId,
-                isActive: true
-              }
-            });
-          }
+        if (clientId) {
+          category = await tx.category.findUnique({ where: { id: clientId } });
         }
 
+        // 2. FALLBACK/REVIVAL LOOKUP (Prevent duplicates, allow reactivating soft-deleted)
         if (!category) {
+          category = await tx.category.findFirst({
+            where: { normalizedName: normalized, parentId, type: categoryType }
+          });
+        }
+
+        // 3. UPSERT / REVIVE
+        if (category) {
+          category = await tx.category.update({
+            where: { id: category.id },
+            data: {
+              name: node.name.trim(),
+              normalizedName: normalized,
+              parentId: parentId,
+              isActive: true,
+              deletedAt: null,
+              isCustom: node.isCustom === true
+            }
+          });
+        } else {
           category = await tx.category.create({
             data: {
               name: node.name.trim(),
               normalizedName: normalized,
-              type: type || 'INVENTORY',
+              type: categoryType,
               parentId: parentId,
-              isActive: true
+              isActive: true,
+              isCustom: node.isCustom === true
             }
           });
         }
 
-        createdNodes.push({ clientId: node.clientId, id: category.id, name: category.name });
+        keptIds.add(category.id);
+        processedNodes.push({ clientId: node.clientId, id: category.id, name: category.name });
 
         if (node.children && Array.isArray(node.children)) {
           for (const child of node.children) {
@@ -138,8 +156,61 @@ export const createCategoriesBatch = async (req: Request, res: Response) => {
         }
       };
 
+      // 4. PROCESS THE TREE
       await processNode(tree, rootParentId || null);
-      return createdNodes;
+
+      // 5. RECONCILIATION & SAFE DEACTIVATION
+      const branchRootId = processedNodes[0]?.id;
+      const warnings: any[] = [];
+
+      if (branchRootId) {
+        // Fetch all existing active descendants of this branch root
+        const allCategories = await tx.category.findMany({
+          where: { type: type || 'INVENTORY', isActive: true }
+        });
+
+        // Build a local descendant map for efficiently finding subtree members
+        const getDescendants = (rootId: string): string[] => {
+          const children = allCategories.filter(c => c.parentId === rootId);
+          return [...children.map(c => c.id), ...children.flatMap(c => getDescendants(c.id))];
+        };
+
+        const existingDescendantIds = getDescendants(branchRootId);
+        const toDeactivateIds = existingDescendantIds.filter(id => !keptIds.has(id));
+
+        if (toDeactivateIds.length > 0) {
+          // Check usage across full subtree
+          const usedCategories = await tx.product.findMany({
+            where: { categoryId: { in: toDeactivateIds } },
+            select: { categoryId: true, name: true, category: { select: { name: true } } }
+          });
+
+          const blockedIds = new Set(usedCategories.map(u => u.categoryId));
+          const safeToDeactivate = toDeactivateIds.filter(id => !blockedIds.has(id));
+
+          // Soft Delete Safe Nodes
+          if (safeToDeactivate.length > 0) {
+            await tx.category.updateMany({
+              where: { id: { in: safeToDeactivate } },
+              data: { isActive: false, deletedAt: new Date() }
+            });
+          }
+
+          // Generate Warnings for Blocked Nodes
+          usedCategories.forEach(u => {
+            if (!warnings.find(w => w.categoryId === u.categoryId)) {
+              warnings.push({
+                categoryId: u.categoryId,
+                categoryName: u.category?.name,
+                reason: "In use by products",
+                sampleProduct: u.name
+              });
+            }
+          });
+        }
+      }
+
+      return { nodes: processedNodes, warnings };
     }, { timeout: 60000 });
 
     processedCategoryRequests.add(requestId);
@@ -157,7 +228,7 @@ export const createCategoriesBatch = async (req: Request, res: Response) => {
 
 export const createCategory = async (req: Request, res: Response) => {
   try {
-    const { name, type, parentName, parentId, isActive, sortOrder } = categorySchema.parse(req.body);
+    const { name, type, parentName, parentId, isActive, isCustom, sortOrder } = categorySchema.parse(req.body);
     const normalizedName = normalize(name);
 
     let effectiveParentId = parentId || null;
@@ -183,6 +254,7 @@ export const createCategory = async (req: Request, res: Response) => {
         type,
         parentId: effectiveParentId,
         isActive: isActive ?? true,
+        isCustom: isCustom ?? false,
         sortOrder: sortOrder ?? 0
       }
     });
@@ -197,7 +269,7 @@ export const createCategory = async (req: Request, res: Response) => {
 export const updateCategory = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { name, type, parentName, parentId, isActive, sortOrder } = categorySchema.partial().parse(req.body);
+    const { name, type, parentName, parentId, isActive, isCustom, sortOrder } = categorySchema.partial().parse(req.body);
 
     const existing = await prisma.category.findUnique({
       where: { id },
@@ -206,7 +278,7 @@ export const updateCategory = async (req: Request, res: Response) => {
 
     if (!existing) return apiResponse.error(res, "Category not found", 404);
 
-    let data: any = { isActive, sortOrder };
+    let data: any = { isActive, isCustom, sortOrder };
     if (name) {
       data.name = name.trim();
       data.normalizedName = normalize(name);

@@ -24,7 +24,8 @@ model User {
   tokenVersion          Int                    @default(1)
   auditLogs             AuditLog[]
   inventoryTransactions InventoryTransaction[]
-  procurementOrders     ProcurementOrder[]
+  createdOrders         ProcurementOrder[]     @relation("CreatedOrders")
+  rejectedOrders        ProcurementOrder[]     @relation("RejectedOrders")
   procurementShipments  ProcurementShipment[]
   refreshTokens         RefreshToken[]
   stockReconciliations  StockReconciliation[]
@@ -100,6 +101,7 @@ model Product {
   unit                 Unit?                     @relation(fields: [unitId], references: [id])
   images               ProductImage[]
   stockReconciliations StockReconciliation[]
+  attributes           Json?
 
   @@index([sku])
   @@index([categoryId])
@@ -190,6 +192,8 @@ model Category {
   children       Category[] @relation("CategoryHierarchy")
   products       Product[]
   vendors        Vendor[]
+  isCustom       Boolean    @default(false)
+  deletedAt      DateTime?
 
   @@unique([normalizedName, parentId, type])
 }
@@ -223,13 +227,17 @@ model ProcurementOrder {
   totalAmount   Float
   submittedById String?
   approvedById  String?
-  createdById   String
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  items         ProcurementItem[]
-  createdBy     User                  @relation(fields: [createdById], references: [id])
-  vendor        Vendor                @relation(fields: [vendorId], references: [id])
-  shipments     ProcurementShipment[]
+  createdById     String
+  approvalNotes  String?
+  rejectionNotes String?
+  rejectedById   String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  items           ProcurementItem[]
+  createdBy       User                  @relation("CreatedOrders", fields: [createdById], references: [id])
+  rejectedBy      User?                 @relation("RejectedOrders", fields: [rejectedById], references: [id])
+  vendor          Vendor                @relation(fields: [vendorId], references: [id])
+  shipments       ProcurementShipment[]
 
   @@index([status])
   @@index([vendorId])
@@ -306,6 +314,7 @@ enum ProcurementStatus {
   PARTIALLY_RECEIVED
   COMPLETED
   CANCELLED
+  REJECTED
 }
 
 enum InventoryTransactionType {

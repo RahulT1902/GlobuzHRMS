@@ -13,6 +13,7 @@ export const categorySchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
   parentName: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  isCustom: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
 });
 

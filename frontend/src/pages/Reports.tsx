@@ -54,12 +54,47 @@ const Reports: React.FC = () => {
     }
   };
 
+  const formatCategories = (flatCategories: any[]) => {
+    const tree: any[] = [];
+    const map: { [key: string]: any } = {};
+
+    flatCategories.forEach(cat => {
+      map[cat.id] = { ...cat, children: [] };
+    });
+
+    flatCategories.forEach(cat => {
+      if (cat.parentId && map[cat.parentId]) {
+          map[cat.parentId].children.push(map[cat.id]);
+      } else {
+          tree.push(map[cat.id]);
+      }
+    });
+
+    const result: any[] = [];
+    const traverse = (nodes: any[], depth: number) => {
+      // Sort siblings alphabetically
+      nodes.sort((a, b) => a.name.localeCompare(b.name)).forEach(node => {
+        result.push({
+          ...node,
+          displayName: `${"\u00A0".repeat(depth * 3)}${depth > 0 ? '↳ ' : ''}${node.name}`
+        });
+        if (node.children.length > 0) {
+          traverse(node.children, depth + 1);
+        }
+      });
+    };
+
+    traverse(tree, 0);
+    return result;
+  };
+
   const fetchMetadata = async () => {
     try {
       const [catRes] = await Promise.all([
         api.get('/config/categories?type=INVENTORY')
       ]);
-      setCategories(catRes.data.data || []);
+      const formatted = formatCategories(catRes.data.data || []);
+      setCategories(formatted);
     } catch (error) {
       console.error("Failed to fetch metadata:", error);
     }
@@ -174,7 +209,7 @@ const Reports: React.FC = () => {
                onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}
              >
                <option value="">All Categories</option>
-               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+               {categories.map(c => <option key={c.id} value={c.id}>{c.displayName}</option>)}
              </select>
 
              <select 

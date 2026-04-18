@@ -7,12 +7,13 @@ import { sendEmail, generatePOHtml } from "../../services/email.service";
 // Status State Machine
 const validTransitions: Record<ProcurementStatus, ProcurementStatus[]> = {
   DRAFT: ["SUBMITTED", "CANCELLED"],
-  SUBMITTED: ["APPROVED", "CANCELLED"],
+  SUBMITTED: ["APPROVED", "REJECTED", "CANCELLED"],
   APPROVED: ["ORDERED", "CANCELLED"],
   ORDERED: ["PARTIALLY_RECEIVED", "COMPLETED", "CANCELLED"],
   PARTIALLY_RECEIVED: ["PARTIALLY_RECEIVED", "COMPLETED", "CANCELLED"],
   COMPLETED: [],
-  CANCELLED: []
+  CANCELLED: [],
+  REJECTED: []
 };
 
 export const createOrder = async (req: Request, res: Response) => {
@@ -82,6 +83,7 @@ export const submitOrder = async (req: Request, res: Response) => {
 export const approveOrder = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { notes } = req.body;
     const userId = (req as any).user.id;
 
     const order = await prisma.procurementOrder.findUnique({ where: { id: String(id) } });
@@ -93,12 +95,48 @@ export const approveOrder = async (req: Request, res: Response) => {
 
     const updatedOrder = await prisma.procurementOrder.update({
       where: { id: String(id) },
-      data: { status: "APPROVED", approvedById: userId }
+      data: { 
+        status: "APPROVED", 
+        approvedById: userId,
+        approvalNotes: notes?.trim() || null 
+      }
     });
 
     return apiResponse.success(res, "Order approved", updatedOrder);
   } catch (error) {
     return apiResponse.error(res, "Failed to approve order", 500);
+  }
+};
+
+export const rejectOrder = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+    const userId = (req as any).user.id;
+
+    const order = await prisma.procurementOrder.findUnique({ where: { id: String(id) } });
+    if (!order) return apiResponse.error(res, "Order not found", 404);
+
+    if (!validTransitions[order.status].includes("REJECTED")) {
+      return apiResponse.error(res, `Cannot transition from ${order.status} to REJECTED`, 400);
+    }
+
+    if (!notes || notes.trim().length === 0) {
+      return apiResponse.error(res, "Rejection reason is required.", 400);
+    }
+
+    const updatedOrder = await prisma.procurementOrder.update({
+      where: { id: String(id) },
+      data: { 
+        status: "REJECTED", 
+        rejectedById: userId,
+        rejectionNotes: notes.trim()
+      }
+    });
+
+    return apiResponse.success(res, "Order rejected", updatedOrder);
+  } catch (error) {
+    return apiResponse.error(res, "Failed to reject order", 500);
   }
 };
 
@@ -248,6 +286,13 @@ export const receiveShipment = async (req: Request, res: Response) => {
           const currentStock = product?.closingStock || 0;
           const newStock = currentStock + incomingQty;
 
+          const refParts = [];
+          if (challanNumber) refParts.push(`CH: ${challanNumber}`);
+          if (invoiceNumber) refParts.push(`INV: ${invoiceNumber}`);
+          const referenceName = refParts.length > 0 
+            ? refParts.join(' / ') 
+            : (order.vendor?.name || "Vendor Delivery");
+
           await tx.inventoryTransaction.create({
             data: {
               productId: item.productId,
@@ -256,9 +301,15 @@ export const receiveShipment = async (req: Request, res: Response) => {
               closingStock: newStock,
               referenceType: "PROCUREMENT_SHIPMENT",
               referenceId: shipment.id,
-              referenceName: challanNumber || order.vendor?.name || "Vendor Delivery",
+              referenceName,
               unitCost: item.unitPrice,
               totalCost: incomingQty * item.unitPrice,
+              metadata: {
+                challanNumber,
+                challanDate,
+                invoiceNumber,
+                invoiceDate
+              },
               notes: `Received via PO ${order.id.slice(0,8)}`,
               createdById: userId,
               createdAt: currentShipmentDate

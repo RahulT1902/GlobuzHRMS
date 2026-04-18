@@ -41,6 +41,7 @@ interface MasterItem {
 interface CategoryNode {
   clientId: string;
   name: string;
+  isCustom?: boolean;
   children: CategoryNode[];
   error?: string;
 }
@@ -73,9 +74,29 @@ const TreeNodeBuilder: React.FC<{
     onUpdate({ ...node, children: newChildren });
   };
 
+  const getFullSubtreeCount = (n: CategoryNode): number => {
+    return n.children.length + n.children.reduce((acc, child) => acc + getFullSubtreeCount(child), 0);
+  };
+
+  const getFullSubtreeNames = (n: CategoryNode): string[] => {
+    return n.children.reduce((acc: string[], child) => [...acc, child.name, ...getFullSubtreeNames(child)], []);
+  };
+
   const deleteChild = (index: number) => {
-    const newChildren = node.children.filter((_, i) => i !== index);
-    onUpdate({ ...node, children: newChildren });
+    const child = node.children[index];
+    const impactCount = getFullSubtreeCount(child);
+    const impactNames = getFullSubtreeNames(child).slice(0, 3);
+    const moreCount = impactCount - impactNames.length;
+
+    let message = `Are you sure you want to remove "${child.name}"?`;
+    if (impactCount > 0) {
+      message += `\n\nThis will also deactivate ${impactCount} sub-categories:\n- ${impactNames.join('\n- ')}${moreCount > 0 ? `\n...and ${moreCount} others` : ''}`;
+    }
+
+    if (window.confirm(message)) {
+      const newChildren = node.children.filter((_, i) => i !== index);
+      onUpdate({ ...node, children: newChildren });
+    }
   };
 
   return (
@@ -99,8 +120,16 @@ const TreeNodeBuilder: React.FC<{
             onChange={e => onUpdate({...node, name: e.target.value})}
             className="flex-1 bg-transparent border-none outline-none px-2 text-sm font-bold text-foreground"
           />
-          
           <div className="flex items-center gap-1">
+            <button 
+              type="button" 
+              onClick={() => onUpdate({...node, isCustom: !node.isCustom})} 
+              className={`p-1.5 rounded-lg transition-all border flex items-center gap-1.5 ${node.isCustom ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-muted/30 border-transparent text-muted-foreground hover:bg-muted'}`}
+              title="Toggle Custom Attributes (Color, Size, GSM)"
+            >
+              <Settings size={14} className={node.isCustom ? 'animate-spin-slow' : ''} />
+              <span className="text-[9px] font-black uppercase tracking-tighter">Custom</span>
+            </button>
             <button type="button" onClick={addChild} className="p-1.5 hover:bg-primary/10 text-primary rounded-lg transition-all" title="Add Child">
               <PlusCircle size={15} />
             </button>
@@ -232,6 +261,13 @@ const AdminConfig: React.FC = () => {
         : await api.post(endpoint, payload);
 
       if (res.data.success) {
+        const { warnings } = res.data.data || {};
+        
+        if (warnings && warnings.length > 0) {
+          const warningText = warnings.map((w: any) => `- ${w.categoryName} (${w.reason}${w.sampleProduct ? `: used in ${w.sampleProduct}` : ''})`).join('\n');
+          alert(`Taxonomy updated with some restrictions:\n\n${warningText}\n\nThese categories were kept to prevent orphan products.`);
+        }
+
         showMsg('success', editingItem.item ? 'Information updated' : 'Record created');
         setModalOpen(false);
         fetchData();
@@ -295,6 +331,7 @@ const AdminConfig: React.FC = () => {
     return {
       clientId: root.id, // CRITICAL: Use DB ID as clientId for backend 'Upsert'
       name: root.name,
+      isCustom: (root as any).isCustom || false,
       children: items
         .filter(i => i.parentId === rootId)
         .map(child => buildTreeFromItems(items, child.id))

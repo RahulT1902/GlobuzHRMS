@@ -12,6 +12,17 @@ const sanitizeNum = (val: any, fallback = 0) => {
   return isNaN(n) ? fallback : n;
 };
 
+const normalizeAttr = (val: any) => (typeof val === 'string') ? val.trim().toUpperCase() : val;
+const cleanAttributes = (attr: any) => {
+  if (!attr || typeof attr !== 'object') return null;
+  const cleaned = Object.fromEntries(
+    Object.entries(attr)
+      .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+      .map(([k, v]) => [k, normalizeAttr(v)])
+  );
+  return Object.keys(cleaned).length > 0 ? cleaned : null;
+};
+
 export const createProductsBatch = async (req: AuthRequest, res: Response) => {
   const requestId = crypto.randomUUID();
   try {
@@ -43,10 +54,15 @@ export const createProductsBatch = async (req: AuthRequest, res: Response) => {
       }
       skuSet.add(normSku);
 
-      // Duplicate Path in Batch
-      const pathKey = (v.categoryPath || []).join("|");
+      // Duplicate Path in Batch (Now includes attributes for uniqueness)
+      const attrKey = v.attributes ? Object.entries(cleanAttributes(v.attributes) || {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, val]) => `${k}:${val}`)
+        .join("|") : "";
+      
+      const pathKey = [...(v.categoryPath || []), attrKey].filter(Boolean).join("|");
       if (pathSet.has(pathKey)) {
-        validationErrors.push({ index, field: 'categoryPath', message: 'This variant configuration already exists in the batch' });
+        validationErrors.push({ index, field: 'categoryPath', message: 'This specific variant configuration (path + attributes) already exists in the batch' });
       }
       pathSet.add(pathKey);
     });
@@ -64,14 +80,28 @@ export const createProductsBatch = async (req: AuthRequest, res: Response) => {
 
     // b. Check Category Existence & SKU Availability
     const allCategoryIds = Array.from(new Set(variants.flatMap(v => v.categoryPath)));
-    const allCategories = await prisma.category.findMany({ where: { id: { in: allCategoryIds } } });
+    const allCategories = await prisma.category.findMany({ where: { id: { in: allCategoryIds }, isActive: true } });
     const catMap = new Map(allCategories.map(c => [c.id, c]));
 
-    // Check for missing categories
-    for (const v of variants) {
+    // Check for missing categories & Validate Attributes for Custom Categories
+    for (const [index, v] of variants.entries()) {
       for (const id of v.categoryPath) {
-        if (!catMap.has(id)) {
-          return apiResponse.error(res, `Invalid Category Reference: ID ${id} not found.`, 400);
+        const cat = catMap.get(id);
+        if (!cat) {
+            return apiResponse.error(res, `Invalid Category Reference: ID ${id} not found.`, 400);
+        }
+      }
+
+      const leafId = v.categoryPath[v.categoryPath.length - 1];
+      const leafCat = catMap.get(leafId);
+      if (leafCat?.isCustom) {
+        const attr = v.attributes || {};
+        if (!attr.color || !attr.gsm) {
+          return res.status(400).json({ 
+            success: false, 
+            type: "VALIDATION_ERROR", 
+            errors: [{ index, field: 'attributes', message: 'Color and GSM are required for custom categories.' }] 
+          });
         }
       }
     }
@@ -108,9 +138,10 @@ export const createProductsBatch = async (req: AuthRequest, res: Response) => {
             purchasePrice: sanitizeNum(v.purchasePrice, 0),
             unitId: sUnitId,
             description: String(description || "").trim(),
-            closingStock: 0, // Initialize at 0, will be updated by transaction
+            closingStock: Math.floor(sanitizeNum(v.initialStock, 0)),
             minThreshold: Math.floor(sanitizeNum(v.minThreshold, 5)),
             purchaseDate: v.purchaseDate ? new Date(v.purchaseDate) : new Date(),
+            attributes: cleanAttributes(v.attributes) as any
           }
         });
 
@@ -127,16 +158,11 @@ export const createProductsBatch = async (req: AuthRequest, res: Response) => {
               createdById: req.user!.id,
             }
           });
-          
-          await tx.product.update({
-             where: { id: product.id },
-             data: { closingStock: qty }
-          });
         }
         results.push(product);
       }
       return results;
-    });
+    }, { timeout: 60000 });
 
     logAudit(req.user!.id, "CREATE", "Product", "BATCH", undefined, 
       { requestId, count: createdProducts.length, productName }, undefined, undefined, "INVENTORY"

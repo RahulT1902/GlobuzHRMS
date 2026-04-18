@@ -159,51 +159,51 @@ const ShipmentReceiptModal: React.FC<ShipmentReceiptModalProps> = ({ isOpen, onC
 
                 {/* Document References */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div>
+                  <div className="flex flex-col justify-end">
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Challan Number</label>
                     <input
                       type="text"
                       value={challanNumber}
                       onChange={(e) => setChallanNumber(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-3 outline-none focus:border-emerald-500 transition-colors"
                       placeholder="CH-123"
                     />
                   </div>
-                  <div>
+                  <div className="flex flex-col justify-end">
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Challan Date</label>
                     <input
                       type="date"
                       value={challanDate}
                       onChange={(e) => setChallanDate(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-3 outline-none focus:border-emerald-500 transition-colors text-xs"
                     />
                   </div>
-                  <div>
+                  <div className="flex flex-col justify-end">
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Invoice Number</label>
                     <input
                       type="text"
                       value={invoiceNumber}
                       onChange={(e) => setInvoiceNumber(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-3 outline-none focus:border-emerald-500 transition-colors"
                       placeholder="INV-123"
                     />
                   </div>
-                  <div>
+                  <div className="flex flex-col justify-end">
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Invoice Date</label>
                     <input
                       type="date"
                       value={invoiceDate}
                       onChange={(e) => setInvoiceDate(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-3 outline-none focus:border-emerald-500 transition-colors text-xs"
                     />
                   </div>
-                  <div className="col-span-2 md:col-span-1">
-                    <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">Set All Receipt Dates</label>
+                  <div className="col-span-2 md:col-span-1 flex flex-col justify-end">
+                    <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2 leading-tight">Set All Receipt Dates</label>
                     <input
                       type="date"
                       value={globalReceivedAt}
                       onChange={(e) => handleGlobalDateChange(e.target.value)}
-                      className="w-full bg-slate-950 border border-emerald-500/50 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors font-bold"
+                      className="w-full bg-slate-950 border border-emerald-500/50 text-white rounded-xl px-3 py-3 outline-none focus:border-emerald-500 transition-colors font-bold text-xs"
                     />
                   </div>
                 </div>
