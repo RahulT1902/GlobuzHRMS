@@ -194,7 +194,6 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
     // 1. Leaf Node Enforcement
     const lastId = currentPath[currentPath.length - 1];
     const lastCat = categoryMap.get(lastId);
-    const children = getChildren(lastId);
     const nextOptions = getChildren(lastId || 'root');
     
     // If no next options are visible/possible, allow adding regardless of technical 'children'
