@@ -92,8 +92,8 @@ const InventoryList: React.FC = () => {
 
   const handleAddSuccess = (data: any) => {
     if (editingProduct) {
-      // Logic for editing a single product
-      setProducts(prev => prev.map(p => p.id === data.id ? data : p));
+      // Re-fetch so the grid gets properly-mapped data (with closingStock from DB)
+      fetchProducts();
     } else if (Array.isArray(data)) {
       // Logic for batch variant initialization
       setProducts(prev => [...data, ...prev.slice(0, Math.max(0, 10 - data.length))]);
@@ -104,7 +104,7 @@ const InventoryList: React.FC = () => {
       setTotal(prev => prev + 1);
     }
     setEditingProduct(null);
-    setIsModalOpen(false); // Explicitly close to ensure UI sync
+    setIsModalOpen(false);
   };
 
   const handleAdjustSuccess = (updatedProduct: any) => {
@@ -254,8 +254,8 @@ const InventoryList: React.FC = () => {
                   <td className="px-6 py-4 min-w-[450px]">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${item.closingStock <= (item.minThreshold || 5) ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                           {item.closingStock <= (item.minThreshold || 5) ? <PackageCheck size={18} /> : <div className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse" />}
+                        <div className={`p-2 rounded-lg ${(item.closingStock ?? 0) <= (item.minThreshold || 5) ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                           {(item.closingStock ?? 0) <= (item.minThreshold || 5) ? <PackageCheck size={18} /> : <div className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse" />}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{item.name}</p>
@@ -275,11 +275,11 @@ const InventoryList: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-center w-36 whitespace-nowrap">
                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors whitespace-nowrap ${
-                      item.closingStock > (item.minThreshold || 10)
+                      (item.closingStock ?? 0) > (item.minThreshold || 10)
                       ? 'bg-primary/10 text-primary border-primary/20' 
                       : 'bg-red-500/10 text-red-500 border-red-500/20'
                     }`}>
-                      {item.closingStock} {item.unit?.name || 'Units'}
+                      {item.closingStock ?? 0} {item.unit?.name || 'Units'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center font-mono text-sm font-bold text-muted-foreground">
@@ -289,7 +289,7 @@ const InventoryList: React.FC = () => {
                     ₹{item.purchasePrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-6 py-4 text-center font-mono text-sm font-black text-primary">
-                    ₹{(item.closingStock * item.purchasePrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹{((item.closingStock ?? 0) * (item.purchasePrice || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-secondary px-2 py-1 rounded">

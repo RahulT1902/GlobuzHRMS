@@ -40,7 +40,8 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [currentSku, setCurrentSku] = useState('');
   const [currentPrice, setCurrentPrice] = useState('');
-  const [currentStock, setCurrentStock] = useState('0');
+  const [currentStock, setCurrentStock] = useState('0'); // For Builder
+  const [editStock, setEditStock] = useState('0');       // For Single Edit
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [customValues, setCustomValues] = useState<Record<number, string>>({});
   const [attributes, setAttributes] = useState({ color: "", size: "", gsm: "" });
@@ -141,6 +142,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
           setPrice(String(product.purchasePrice || ''));
           setMinThreshold(String(product.minThreshold || '5'));
           setCategoryId(product.categoryId || '');
+          setEditStock(String(product.currentStock || '0'));
         } else {
           setProductName('');
           setDescription('');
@@ -309,7 +311,8 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
           sku: sku.trim().toUpperCase(),
           purchasePrice: Number(price) || 0,
           minThreshold: Number(minThreshold) || 5,
-          categoryId: categoryId || product.categoryId
+          categoryId: categoryId || product.categoryId,
+          currentStock: Number(editStock) || 0
         };
 
         const response = await api.put(`/inventory/${product.id}`, payload);
@@ -430,37 +433,46 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                   </div>
                 </div>
 
-                {/* SINGLE EDIT SPECIFIC FIELDS */}
-                {product && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-top-2 duration-500">
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-muted-foreground">SKU Number</label>
-                      <input
-                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono font-bold uppercase"
-                        value={sku}
-                        onChange={e => setSku(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-muted-foreground">Purchase Price (₹)</label>
-                      <input
-                        type="number"
-                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                        value={price}
-                        onChange={e => setPrice(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-muted-foreground">Low Stock Limit</label>
-                      <input
-                        type="number"
-                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                        value={minThreshold}
-                        onChange={e => setMinThreshold(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
+                 {/* SINGLE EDIT SPECIFIC FIELDS */}
+                 {product && (
+                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in slide-in-from-top-2 duration-500">
+                     <div className="space-y-2">
+                       <label className="text-sm font-semibold text-muted-foreground">SKU Number</label>
+                       <input
+                         className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono font-bold uppercase"
+                         value={sku}
+                         onChange={e => setSku(e.target.value)}
+                       />
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-sm font-semibold text-muted-foreground">Purchase Price (₹)</label>
+                       <input
+                         type="number"
+                         className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                         value={price}
+                         onChange={e => setPrice(e.target.value)}
+                       />
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-sm font-semibold text-muted-foreground">Current Stock</label>
+                       <input
+                         type="number"
+                         className="w-full bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-bold"
+                         value={editStock}
+                         onChange={e => setEditStock(e.target.value)}
+                       />
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-sm font-semibold text-muted-foreground">Low Stock Limit</label>
+                       <input
+                         type="number"
+                         className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                         value={minThreshold}
+                         onChange={e => setMinThreshold(e.target.value)}
+                       />
+                     </div>
+                   </div>
+                 )}
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-muted-foreground">Description</label>

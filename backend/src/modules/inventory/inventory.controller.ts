@@ -293,7 +293,7 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
 
     const items = products.map(p => ({
       ...p,
-      currentStock: p.transactions[0]?.closingStock || 0,
+      currentStock: p.closingStock,
       transactions: undefined
     }));
 
@@ -321,7 +321,7 @@ export const getProductById = async (req: AuthRequest, res: Response) => {
     
     const result = {
       ...product,
-      currentStock: product.transactions[0]?.closingStock || 0
+      currentStock: product.closingStock
     };
 
     return apiResponse.success(res, "Product fetched", result);
@@ -336,26 +336,58 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
     const old = await prisma.product.findFirst({ where: { id: String(id) } });
     if (!old) return apiResponse.error(res, "Product not found", 404);
 
-    const { name, categoryId, sku, purchasePrice, unitId, description, minThreshold } = req.body;
+    const { name, categoryId, sku, purchasePrice, unitId, description, minThreshold, currentStock } = req.body;
     
-    const product = await prisma.product.update({
-      where: { id: String(id) },
-      data: {
-        name,
-        categoryId,
-        sku,
-        purchasePrice: Number(purchasePrice),
-        unitId,
-        description,
-        minThreshold: Number(minThreshold)
-      },
-      include: { category: true, unit: true, images: true }
+    // Use helpers to prevent NaN errors in DB
+    const sPurchasePrice = sanitizeNum(purchasePrice, old.purchasePrice);
+    const sMinThreshold = Math.floor(sanitizeNum(minThreshold, old.minThreshold));
+    const targetStock = Math.floor(sanitizeNum(currentStock, old.closingStock));
+    
+    // Calculate stock delta for ledger
+    const delta = targetStock - old.closingStock;
+
+    console.log(`[InventoryUpdate] ID: ${id}, Old: ${old.closingStock}, New: ${targetStock}, Delta: ${delta}`);
+
+    const product = await prisma.$transaction(async (tx) => {
+      // 1. Update the product master record
+      const p = await tx.product.update({
+        where: { id: String(id) },
+        data: {
+          name: String(name || old.name).trim(),
+          categoryId: sanitizeId(categoryId),
+          sku: sku ? String(sku).trim().toUpperCase() : old.sku,
+          purchasePrice: sPurchasePrice,
+          unitId: sanitizeId(unitId),
+          description: description !== undefined ? String(description).trim() : old.description,
+          minThreshold: sMinThreshold,
+          closingStock: targetStock
+        },
+        include: { category: true, unit: true, images: true }
+      });
+
+      // 2. If stock level changed, record the adjustment in the ledger
+      if (!isNaN(delta) && delta !== 0) {
+        await tx.inventoryTransaction.create({
+          data: {
+            productId: String(id),
+            type: delta > 0 ? "MANUAL_IN" : "MANUAL_OUT",
+            quantity: Math.abs(delta),
+            closingStock: targetStock,
+            referenceType: "MANUAL_ADJUSTMENT",
+            notes: `Direct edit from asset manager. Previous: ${old.closingStock}, New: ${targetStock}`,
+            createdById: req.user!.id,
+          }
+        });
+      }
+
+      return p;
     });
 
     logAudit(req.user!.id, "UPDATE", "Product", String(id), old as object, product as object, undefined, undefined, "INVENTORY");
-    return apiResponse.success(res, "Product updated", product);
-  } catch (error) {
-    return apiResponse.error(res, "Failed to update product", 500);
+    return apiResponse.success(res, "Product updated with ledger adjustment", product);
+  } catch (error: any) {
+    console.error("Update Product Error:", error);
+    return apiResponse.error(res, error.message || "Failed to update product", 500);
   }
 };
 

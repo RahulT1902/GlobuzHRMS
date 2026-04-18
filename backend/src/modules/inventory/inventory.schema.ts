@@ -12,7 +12,10 @@ export const createProductSchema = z.object({
   minThreshold: z.number().min(0).default(5),
 });
 
-export const updateProductSchema = createProductSchema.partial();
+export const updateProductSchema = createProductSchema.partial().extend({
+  currentStock: z.number().min(0).optional(),
+});
+
 
 export const adjustStockSchema = z.object({
   type: z.enum(["INITIAL_STOCK", "PROCUREMENT_IN", "SALES_OUT", "MANUAL_IN", "MANUAL_OUT", "RECONCILIATION", "TRANSFER"]),
