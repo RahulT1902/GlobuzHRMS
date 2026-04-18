@@ -165,35 +165,45 @@ export const markAsOrdered = async (req: Request, res: Response) => {
 
     // Trigger Email Dispatch (Async)
     const currentUserId = (req as any).user.id;
+    console.log(`[Diagnostic] markAsOrdered hit. UserID: ${currentUserId}, VendorEmail: ${updatedOrder.vendor?.email}`);
+    
     if (updatedOrder.vendor?.email && currentUserId) {
-      // Fetch full user details to get the Name for the email template
+      console.log(`[Diagnostic] Prerequisites met. Fetching user...`);
       prisma.user.findUnique({ 
         where: { id: currentUserId },
         select: { name: true, email: true }
       }).then(user => {
-        if (!user) return;
+        if (!user) {
+          console.warn(`[Diagnostic] User not found in database for ID: ${currentUserId}`);
+          return;
+        }
+
         let fromEmail = user.email || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev";
-        
-        // AUTO-SWITCH: If domain globuzinc.com is not verified, use the verified globuzhrms.com
         if (fromEmail.endsWith("@globuzinc.com")) {
           fromEmail = fromEmail.replace("@globuzinc.com", "@globuzhrms.com");
         }
 
         const html = generatePOHtml(updatedOrder, user.name || "Purchasing Team");
         
-        console.log(`[Email] Verified Dispatch for PO-${updatedOrder.id.slice(0, 8)} from: ${fromEmail}`);
+        console.log(`[Email] Verified Dispatch for PO-${updatedOrder.id.slice(0, 8)} from: ${fromEmail} (API Key present: ${!!process.env.RESEND_API_KEY})`);
         
         sendEmail({
           to: updatedOrder.vendor.email,
           from: fromEmail,
-          replyTo: user.email || fromEmail, // Replies still go to their actual inbox
+          replyTo: user.email || fromEmail,
           subject: `Purchase Order Issued: PO-${updatedOrder.id.slice(0, 8).toUpperCase()}`,
           html
+        }).then(res => {
+          console.log(`[Diagnostic] sendEmail call completed. Success: ${res?.success}`);
         }).catch(err => {
           console.error("CRITICAL: Email automation failure for PO:", updatedOrder.id);
           console.error("Resend Error Detail:", err.response?.data || err.message || err);
         });
+      }).catch(err => {
+        console.error(`[Diagnostic] Error during user lookup:`, err);
       });
+    } else {
+      console.warn(`[Diagnostic] Prerequisites FAILED. Vendor Email: ${!!updatedOrder.vendor?.email}, User ID: ${!!currentUserId}`);
     }
 
     return apiResponse.success(res, "Order marked as dispatched/ordered to vendor", updatedOrder);
