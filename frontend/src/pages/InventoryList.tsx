@@ -203,12 +203,12 @@ const InventoryList: React.FC = () => {
                   className="w-4 h-4 rounded border-border bg-background accent-primary cursor-pointer"
                 />
               </th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Asset & Identifier</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center w-40">Current Stock</th>
+              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest min-w-[450px]">Asset & Identifier</th>
+              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center w-36">Current Stock</th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Purchase Date</th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Purchase Price</th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Category</th>
-              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-right w-80">Actions</th>
+              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-right w-48">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
@@ -250,7 +250,7 @@ const InventoryList: React.FC = () => {
                       />
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 min-w-[450px]">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-lg ${item.closingStock <= (item.minThreshold || 5) ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
@@ -272,7 +272,7 @@ const InventoryList: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center w-40 whitespace-nowrap">
+                  <td className="px-6 py-4 text-center w-36 whitespace-nowrap">
                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors whitespace-nowrap ${
                       item.closingStock > (item.minThreshold || 10)
                       ? 'bg-primary/10 text-primary border-primary/20' 
@@ -292,7 +292,7 @@ const InventoryList: React.FC = () => {
                       {item.category?.name || 'General'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right w-80">
+                  <td className="px-6 py-4 text-right w-48">
                     <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity min-h-[36px]">
                       {hasPermission(PERMISSIONS.INVENTORY_VIEW) && (
                         <button 

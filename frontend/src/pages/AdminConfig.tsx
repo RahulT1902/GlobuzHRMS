@@ -15,6 +15,7 @@ import {
   Database,
   Cpu,
   ChevronRight,
+  ChevronDown,
   GitBranch,
   PlusCircle,
   Hash
@@ -61,7 +62,10 @@ const TreeNodeBuilder: React.FC<{
   isRoot: boolean
 }> = ({ node, onUpdate, onDelete, depth, isRoot }) => {
   
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   const addChild = () => {
+    setIsCollapsed(false); // Ensure expanded when adding
     onUpdate({
       ...node,
       children: [...node.children, createInitialNode()]
@@ -114,6 +118,15 @@ const TreeNodeBuilder: React.FC<{
         )}
 
         <div className={`flex-1 flex gap-2 items-center bg-card border ${node.error ? 'border-rose-500 shadow-lg shadow-rose-500/10' : 'border-border'} p-2 rounded-2xl shadow-sm hover:border-primary/40 transition-all`}>
+          {node.children.length > 0 && (
+             <button 
+               type="button" 
+               onClick={() => setIsCollapsed(!isCollapsed)}
+               className="p-1 hover:bg-muted rounded-md text-muted-foreground transition-all ml-1"
+             >
+               {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+             </button>
+          )}
           <input 
             placeholder={isRoot ? "Main Group (e.g. Sunpack)" : "Child Spec (e.g. 5MM)"}
             value={node.name}
@@ -142,7 +155,7 @@ const TreeNodeBuilder: React.FC<{
         </div>
       </div>
 
-      {node.children.length > 0 && (
+      {!isCollapsed && node.children.length > 0 && (
         <div className="space-y-3">
           {node.children.map((child, idx) => (
             <TreeNodeBuilder 
