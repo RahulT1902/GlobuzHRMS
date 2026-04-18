@@ -441,3 +441,46 @@ export const getNotificationCounts = async (req: Request, res: Response) => {
     return apiResponse.error(res, "Failed to calculate notification counts", 500);
   }
 };
+
+export const deleteOrder = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const userId = (req as any).user.id;
+
+    const order = await prisma.procurementOrder.findUnique({
+      where: { id: String(id) },
+      include: { _count: { select: { shipments: true } } }
+    });
+
+    if (!order) return apiResponse.error(res, "Order not found", 404);
+
+    // Safety Checks
+    if (order._count.shipments > 0) {
+      return apiResponse.error(res, "Cannot delete order with existing shipments. Cancel it instead.", 400);
+    }
+
+    if (order.status === "COMPLETED" || order.status === "PARTIALLY_RECEIVED") {
+      return apiResponse.error(res, "Cannot delete orders that have affected inventory.", 400);
+    }
+
+    await prisma.procurementOrder.delete({
+      where: { id: String(id) }
+    });
+
+    // Logging the action
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action: "DELETE",
+        entity: "ProcurementOrder",
+        entityId: id,
+        module: "PROCUREMENT"
+      }
+    });
+
+    return apiResponse.success(res, "Procurement order deleted successfully");
+  } catch (error) {
+    console.error("Delete Order Error:", error);
+    return apiResponse.error(res, "Failed to delete procurement order", 500);
+  }
+};

@@ -173,6 +173,23 @@ const Procurement: React.FC = () => {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm('⚠️ HEAVY OVERRIDE: Are you absolutely sure you want to PERMANENTLY DELETE this procurement request? This cannot be undone and will be logged in the audit trail.')) return;
+    
+    setActionLoading(true);
+    setActionMsg('');
+    try {
+      await api.delete(`/api/procurement/${orderId}`);
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      setSelectedOrder(null);
+      refreshNotifications();
+    } catch (err: any) {
+      setActionMsg('Error: ' + (err.response?.data?.message || 'Delete failed. You may not have the required administrative role.'));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading && !showWizard) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>;
   }
@@ -276,9 +293,19 @@ const Procurement: React.FC = () => {
                     </p>
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <button className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100">
-                      <ChevronRight size={20} strokeWidth={3} />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      {hasPermission(PERMISSIONS.ADMIN_CONFIG) && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
+                          className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"
+                        >
+                          <Trash2 size={18} strokeWidth={3} />
+                        </button>
+                      )}
+                      <button className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100">
+                        <ChevronRight size={20} strokeWidth={3} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -314,6 +341,15 @@ const Procurement: React.FC = () => {
                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Created At</p>
                      <p className="text-[10px] font-bold text-foreground opacity-60 leading-none">{new Date(selectedOrder.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                   </div>
+                  {hasPermission(PERMISSIONS.ADMIN_CONFIG) && (
+                    <button 
+                      onClick={() => handleDeleteOrder(selectedOrder.id)} 
+                      className="w-12 h-12 flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 hover:text-white rounded-2xl text-rose-500 transition-all shadow-sm"
+                      title="Delete Record"
+                    >
+                      <Trash2 size={24} strokeWidth={3} />
+                    </button>
+                  )}
                   <button onClick={() => setSelectedOrder(null)} className="w-12 h-12 flex items-center justify-center bg-muted/50 hover:bg-rose-500/10 hover:text-rose-500 rounded-2xl text-muted-foreground transition-all">
                     <X size={24} strokeWidth={3} />
                   </button>

@@ -8,7 +8,8 @@ import {
   receiveShipment, 
   getOrders, 
   getOrderById,
-  getNotificationCounts
+  getNotificationCounts,
+  deleteOrder
 } from "./procurement.controller";
 import { authenticate, authorize } from "../../middleware/auth.middleware";
 
@@ -21,12 +22,11 @@ router.get("/:id", authenticate, getOrderById);
 // Lifecycle transitions
 router.post("/", authenticate, createOrder);
 
-// Submitting: PROCUREMENT or ADMIN
-router.put("/:id/submit", authenticate, authorize("PROCUREMENT", "ADMIN"), submitOrder);
-
 // Approving/Rejecting: ADMIN only
+router.put("/:id/submit", authenticate, authorize("PROCUREMENT", "ADMIN"), submitOrder);
 router.put("/:id/approve", authenticate, authorize("ADMIN"), approveOrder);
 router.put("/:id/reject", authenticate, authorize("ADMIN"), rejectOrder);
+router.delete("/:id", authenticate, authorize("ADMIN"), deleteOrder);
 
 // Moving to Ordered Phase
 router.put("/:id/order", authenticate, authorize("ADMIN", "PROCUREMENT"), markAsOrdered);
