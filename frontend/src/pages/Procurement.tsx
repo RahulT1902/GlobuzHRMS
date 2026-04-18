@@ -179,7 +179,7 @@ const Procurement: React.FC = () => {
     setActionLoading(true);
     setActionMsg('');
     try {
-      await api.delete(`/api/procurement/${orderId}`);
+      await api.delete(`/procurement/${orderId}`);
       setOrders(prev => prev.filter(o => o.id !== orderId));
       setSelectedOrder(null);
       refreshNotifications();
