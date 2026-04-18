@@ -164,18 +164,25 @@ export const markAsOrdered = async (req: Request, res: Response) => {
     });
 
     // Trigger Email Dispatch (Async)
-    if (updatedOrder.vendor?.email) {
-      const creatorName = updatedOrder.createdBy.name;
-      const creatorEmail = updatedOrder.createdBy.email;
-      const html = generatePOHtml(updatedOrder, creatorName);
-      
-      sendEmail({
-        to: updatedOrder.vendor.email,
-        from: creatorEmail || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev",
-        replyTo: creatorEmail || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev",
-        subject: `Purchase Order Issued: PO-${updatedOrder.id.slice(0, 8).toUpperCase()}`,
-        html
-      }).catch(err => console.error("Email automation failure:", err));
+    const currentUserId = (req as any).user.id;
+    if (updatedOrder.vendor?.email && currentUserId) {
+      // Fetch full user details to get the Name for the email template
+      prisma.user.findUnique({ 
+        where: { id: currentUserId },
+        select: { name: true, email: true }
+      }).then(user => {
+        if (!user) return;
+        const fromEmail = user.email || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev";
+        const html = generatePOHtml(updatedOrder, user.name || "Purchasing Team");
+        
+        sendEmail({
+          to: updatedOrder.vendor.email,
+          from: fromEmail,
+          replyTo: fromEmail,
+          subject: `Purchase Order Issued: PO-${updatedOrder.id.slice(0, 8).toUpperCase()}`,
+          html
+        }).catch(err => console.error("Email automation failure:", err));
+      });
     }
 
     return apiResponse.success(res, "Order marked as dispatched/ordered to vendor", updatedOrder);
