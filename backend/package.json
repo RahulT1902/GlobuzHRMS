@@ -44,5 +44,8 @@
         "prisma": "^6.19.3",
         "ts-node": "^10.9.2",
         "typescript": "^6.0.2"
+    },
+    "prisma": {
+        "seed": "ts-node --transpile-only src/seed.ts"
     }
 }
