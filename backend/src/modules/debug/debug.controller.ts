@@ -13,7 +13,8 @@ export const validateStockDrift = async (req: Request, res: Response) => {
       });
 
       const calculatedStock = transactions.reduce((sum, tx) => {
-        return tx.type === 'IN' || tx.type === 'ADJUSTMENT' ? sum + tx.quantity : sum - tx.quantity;
+        const isAddition = tx.type === 'INITIAL_STOCK' || tx.type === 'PROCUREMENT_IN' || tx.type === 'MANUAL_IN';
+        return isAddition ? sum + tx.quantity : sum - tx.quantity;
       }, 0);
 
       const isMatching = calculatedStock === product.closingStock;
