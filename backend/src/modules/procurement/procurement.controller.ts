@@ -172,16 +172,27 @@ export const markAsOrdered = async (req: Request, res: Response) => {
         select: { name: true, email: true }
       }).then(user => {
         if (!user) return;
-        const fromEmail = user.email || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev";
+        let fromEmail = user.email || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev";
+        
+        // AUTO-SWITCH: If domain globuzinc.com is not verified, use the verified globuzhrms.com
+        if (fromEmail.endsWith("@globuzinc.com")) {
+          fromEmail = fromEmail.replace("@globuzinc.com", "@globuzhrms.com");
+        }
+
         const html = generatePOHtml(updatedOrder, user.name || "Purchasing Team");
+        
+        console.log(`[Email] Verified Dispatch for PO-${updatedOrder.id.slice(0, 8)} from: ${fromEmail}`);
         
         sendEmail({
           to: updatedOrder.vendor.email,
           from: fromEmail,
-          replyTo: fromEmail,
+          replyTo: user.email || fromEmail, // Replies still go to their actual inbox
           subject: `Purchase Order Issued: PO-${updatedOrder.id.slice(0, 8).toUpperCase()}`,
           html
-        }).catch(err => console.error("Email automation failure:", err));
+        }).catch(err => {
+          console.error("CRITICAL: Email automation failure for PO:", updatedOrder.id);
+          console.error("Resend Error Detail:", err.response?.data || err.message || err);
+        });
       });
     }
 
