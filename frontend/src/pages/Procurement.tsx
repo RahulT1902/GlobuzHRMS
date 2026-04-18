@@ -394,7 +394,7 @@ const Procurement: React.FC = () => {
                       </div>
 
                       <div className="relative flex justify-between items-start">
-                        {['DRAFT', 'SUBMITTED', 'APPROVED', 'ORDERED', 'COMPLETED'].map((s, idx) => {
+                        {['DRAFT', 'SUBMITTED', 'APPROVED', 'ORDERED', 'COMPLETED'].map((s) => {
                           const baseStatus = selectedOrder.status === 'REJECTED' ? 'SUBMITTED' : (selectedOrder.status === 'PARTIALLY_RECEIVED' ? 'ORDERED' : selectedOrder.status);
                           const statusOrder = ['DRAFT', 'SUBMITTED', 'APPROVED', 'ORDERED', 'COMPLETED'];
                           const currentIndex = statusOrder.indexOf(baseStatus);
