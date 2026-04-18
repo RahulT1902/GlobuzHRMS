@@ -171,7 +171,7 @@ export const markAsOrdered = async (req: Request, res: Response) => {
       
       sendEmail({
         to: updatedOrder.vendor.email,
-        from: process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev",
+        from: creatorEmail || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev",
         replyTo: creatorEmail || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev",
         subject: `Purchase Order Issued: PO-${updatedOrder.id.slice(0, 8).toUpperCase()}`,
         html
