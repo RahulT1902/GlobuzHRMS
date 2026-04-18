@@ -13,15 +13,8 @@ interface EmailParams {
 
 export const sendEmail = async ({ to, from, replyTo, subject, html }: EmailParams) => {
   try {
-    if (!process.env.RESEND_API_KEY) {
-      console.log('--- MOCK EMAIL START ---');
-      console.log(`To: ${to}`);
-      console.log(`From: ${from}`);
-      console.log(`Reply-To: ${replyTo}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`Content Summary: ${html.slice(0, 100)}...`);
-      console.log('--- MOCK EMAIL END ---');
-      return { success: true, mock: true };
+    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_dummy_123') {
+      throw new Error('CONFIG_ERROR: RESEND_API_KEY is missing from Render Environment Variables.');
     }
 
     const { data, error } = await resend.emails.send({
