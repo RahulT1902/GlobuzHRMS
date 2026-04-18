@@ -658,7 +658,7 @@ const Procurement: React.FC = () => {
                           onClick={() => handleAdvanceStatus(selectedOrder.id, 'order')}
                           className="w-full h-16 flex items-center justify-center gap-4 bg-violet-600 hover:bg-violet-500 text-white font-black uppercase tracking-[0.3em] text-xs rounded-3xl transition-all shadow-xl shadow-violet-500/20 active:scale-95 disabled:opacity-30"
                         >
-                          <Package size={20} strokeWidth={3} /> {actionLoading ? 'SYNCHRONIZING...' : 'MARK AS DISPATCHED'}
+                          <Package size={20} strokeWidth={3} /> {actionLoading ? 'SYNCHRONIZING...' : 'MARK AS ORDERED'}
                         </button>
                       )}
 
