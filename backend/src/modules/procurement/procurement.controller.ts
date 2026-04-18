@@ -172,7 +172,7 @@ export const markAsOrdered = async (req: Request, res: Response) => {
       sendEmail({
         to: updatedOrder.vendor.email,
         from: process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev",
-        replyTo: creatorEmail || "noreply@globuz.com",
+        replyTo: creatorEmail || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev",
         subject: `Purchase Order Issued: PO-${updatedOrder.id.slice(0, 8).toUpperCase()}`,
         html
       }).catch(err => console.error("Email automation failure:", err));
