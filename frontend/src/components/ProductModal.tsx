@@ -44,6 +44,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [customValues, setCustomValues] = useState<Record<number, string>>({});
   const [attributes, setAttributes] = useState({ color: "", size: "", gsm: "" });
+  const [sku, setSku] = useState("");
+  const [price, setPrice] = useState("");
+  const [minThreshold, setMinThreshold] = useState("5");
+  const [categoryId, setCategoryId] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -67,6 +71,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
   const getChildren = (parentId: string | null) => childrenMap.get(parentId || 'root') || [];
 
   const handleCategoryChange = React.useCallback((index: number, value: string) => {
+    setError(''); // Clear any previous alerts on change
     setVariants(prev => prev); // trigger re-renders if needed
     setCurrentPath(prev => {
       const next = prev.slice(0, index);
@@ -129,16 +134,21 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
         setCategoryMap(map);
 
         if (product) {
-          // Edit mode is limited in batch-version for now
-          // We treat the existing product as the first variant
-          setProductName(product.name.split(' | ')[0]); // Extract base name
+          setProductName(product.name);
           setDescription(product.description || '');
           setUnitId(product.unitId || '');
-          // Existing variants logic would go here
+          setSku(product.sku || '');
+          setPrice(String(product.purchasePrice || ''));
+          setMinThreshold(String(product.minThreshold || '5'));
+          setCategoryId(product.categoryId || '');
         } else {
           setProductName('');
           setDescription('');
           setUnitId((uRes.data.data || [])[0]?.id || '');
+          setSku('');
+          setPrice('');
+          setMinThreshold('5');
+          setCategoryId('');
           setVariants([]);
         }
       } catch (err) {
@@ -185,9 +195,12 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
     const lastId = currentPath[currentPath.length - 1];
     const lastCat = categoryMap.get(lastId);
     const children = getChildren(lastId);
+    const nextOptions = getChildren(lastId || 'root');
     
-    // Custom-flagged categories are allowed to be "leaf" nodes even if they have sub-categories
-    if (children.length > 0 && !lastCat?.isCustom) {
+    // If no next options are visible/possible, allow adding regardless of technical 'children'
+    const canShowNext = (currentPath.length === 0 || lastId) && nextOptions.length > 0 && currentPath.length < MAX_DEPTH && !lastCat?.isCustom;
+
+    if (canShowNext && !lastCat?.isCustom) {
       setError('Please select the most specific category (leaf level).');
       return;
     }
@@ -276,7 +289,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
   // 4. Batch Submission (Hardened)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (variants.length === 0) {
+    if (!product && variants.length === 0) {
       setError('Add at least one variant before initializing.');
       return;
     }
@@ -288,20 +301,36 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
     setVariants(prev => prev.map(v => ({ ...v, error: undefined })));
 
     try {
-      const payload = {
-        productName: productName.trim(),
-        description: description.trim(),
-        unitId: unitId || null,
-        variants: variants.map(({ error, pathNames, ...v }) => ({
-          ...v,
-          purchasePrice: Number(v.purchasePrice) || 0,
-          initialStock: Number(v.initialStock) || 0
-        }))
-      };
+      if (product) {
+        // --- SINGLE UPDATE LOGIC ---
+        const payload = {
+          name: productName.trim(),
+          description: description.trim(),
+          unitId: unitId || null,
+          sku: sku.trim().toUpperCase(),
+          purchasePrice: Number(price) || 0,
+          minThreshold: Number(minThreshold) || 5,
+          categoryId: categoryId || product.categoryId
+        };
 
-      const response = await api.post('/inventory/batch', payload);
-      setError('');
-      onSuccess(response.data.data);
+        const response = await api.put(`/inventory/${product.id}`, payload);
+        onSuccess(response.data.data);
+      } else {
+        // --- BATCH CREATE LOGIC ---
+        const payload = {
+          productName: productName.trim(),
+          description: description.trim(),
+          unitId: unitId || null,
+          variants: variants.map(({ error, pathNames, ...v }) => ({
+            ...v,
+            purchasePrice: Number(v.purchasePrice) || 0,
+            initialStock: Number(v.initialStock) || 0
+          }))
+        };
+
+        const response = await api.post('/inventory/batch', payload);
+        onSuccess(response.data.data);
+      }
       onClose();
     } catch (err: any) {
       console.error('Batch Onboarding Error:', err);
@@ -347,8 +376,12 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                   <Package size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-foreground">Asset Variant Builder</h3>
-                  <p className="text-muted-foreground text-sm">Define a master product and its technical configurations.</p>
+                  <h3 className="text-xl font-bold text-foreground">
+                    {product ? 'Update Asset Details' : 'Asset Variant Builder'}
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    {product ? `Modifying technical specs for SKU: ${product.sku}` : 'Define a master product and its technical configurations.'}
+                  </p>
                 </div>
               </div>
               <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg text-muted-foreground transition-colors">
@@ -358,20 +391,23 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
 
             <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin">
               {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-500 text-sm">
+                <div className="sticky top-0 z-20 -mx-8 -mt-8 mb-8 p-4 bg-red-500 text-white shadow-xl flex items-center gap-3 text-sm animate-in slide-in-from-top duration-300">
                   <AlertCircle size={18} className="flex-shrink-0" />
-                  <span>{error}</span>
+                  <span className="font-bold">{error}</span>
+                  <button onClick={() => setError('')} className="ml-auto hover:bg-white/20 p-1 rounded transition-colors">
+                    <X size={16} />
+                  </button>
                 </div>
               )}
 
               {/* SECTION 1: MASTER PRODUCT INFO */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
-                  <Tag size={12} /> Master Definition
+                  <Tag size={12} /> {product ? "General Information" : "Master Definition"}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-muted-foreground">Base Product Name</label>
+                    <label className="text-sm font-semibold text-muted-foreground">Product Name</label>
                     <input
                       ref={firstInputRef}
                       required
@@ -394,19 +430,54 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                     </select>
                   </div>
                 </div>
+
+                {/* SINGLE EDIT SPECIFIC FIELDS */}
+                {product && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-top-2 duration-500">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-muted-foreground">SKU Number</label>
+                      <input
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono font-bold uppercase"
+                        value={sku}
+                        onChange={e => setSku(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-muted-foreground">Purchase Price (₹)</label>
+                      <input
+                        type="number"
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                        value={price}
+                        onChange={e => setPrice(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-muted-foreground">Low Stock Limit</label>
+                      <input
+                        type="number"
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                        value={minThreshold}
+                        onChange={e => setMinThreshold(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-muted-foreground">Master Description</label>
+                  <label className="text-sm font-semibold text-muted-foreground">Description</label>
                   <textarea
                     className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all h-20 resize-none text-sm"
-                    placeholder="Shared details for all variants..."
+                    placeholder={product ? "Details for this specific asset..." : "Shared details for all variants..."}
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                   />
                 </div>
               </div>
 
-              {/* SECTION 2: VARIANT BUILDER (STAGING) */}
-              <div className="space-y-4 pt-4 border-t border-border">
+              {!product && (
+                <>
+                  {/* SECTION 2: VARIANT BUILDER (STAGING) */}
+                  <div className="space-y-4 pt-4 border-t border-border">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-500">
                   <Plus size={12} /> Variant Configuration
                 </div>
@@ -678,7 +749,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                   </div>
                 </div>
               )}
-            </div>
+            </>
+          )}
+        </div>
 
             {/* Footer Actions */}
             <div className="px-8 py-6 border-t border-border bg-card/50 flex gap-4 flex-shrink-0">
@@ -689,11 +762,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                 Cancel
               </button>
               <button
-                disabled={loading || variants.length === 0}
+                disabled={loading || (!product && variants.length === 0)}
                 onClick={handleSubmit}
                 className="flex-[2] py-3.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Initialize All Variants'}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : product ? 'Update Asset Info' : 'Initialize All Variants'}
               </button>
             </div>
           </motion.div>

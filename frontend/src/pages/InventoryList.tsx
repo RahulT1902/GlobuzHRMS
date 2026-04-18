@@ -207,6 +207,7 @@ const InventoryList: React.FC = () => {
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center w-36">Current Stock</th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Purchase Date</th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Purchase Price</th>
+              <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-center whitespace-nowrap">Total Value</th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">Category</th>
               <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-widest text-right w-48">Actions</th>
             </tr>
@@ -215,7 +216,7 @@ const InventoryList: React.FC = () => {
             <AnimatePresence mode="wait">
               {loading ? (
                 <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <td colSpan={7} className="py-20 text-center">
+                  <td colSpan={8} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="w-8 h-8 text-primary animate-spin" />
                       <p className="text-muted-foreground text-sm font-medium">Synchronizing Ledger...</p>
@@ -224,7 +225,7 @@ const InventoryList: React.FC = () => {
                 </motion.tr>
               ) : products.length === 0 ? (
                 <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <td colSpan={7} className="py-20 text-center">
+                  <td colSpan={8} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Search className="w-12 h-12 text-muted-foreground/40" />
                       <p className="text-muted-foreground font-bold">No assets identified.</p>
@@ -284,8 +285,11 @@ const InventoryList: React.FC = () => {
                   <td className="px-6 py-4 text-center font-mono text-sm font-bold text-muted-foreground">
                     {new Date(item.createdAt).toLocaleDateString('en-GB')}
                   </td>
-                  <td className="px-6 py-4 text-center font-mono text-sm font-bold text-emerald-400">
+                  <td className="px-6 py-4 text-center font-mono text-sm font-bold text-emerald-400/80">
                     ₹{item.purchasePrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-6 py-4 text-center font-mono text-sm font-black text-primary">
+                    ₹{(item.closingStock * item.purchasePrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-secondary px-2 py-1 rounded">
