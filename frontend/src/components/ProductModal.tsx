@@ -708,16 +708,19 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                                   ))}
                                   {v.attributes && (
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      {Object.entries(v.attributes || {}).map(([key, val], idx) => (
-                                        <React.Fragment key={key}>
-                                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-tight ${
-                                            idx % 2 === 0 ? 'bg-blue-500 text-white' : 'bg-emerald-500 text-white'
-                                          }`}>
-                                            {String(val)}
-                                          </span>
-                                          {idx < Object.entries(v.attributes).length - 1 && <ChevronRight size={10} className="text-muted-foreground/40" />}
-                                        </React.Fragment>
-                                      ))}
+                                      {(() => {
+                                        const entries = Object.entries(v.attributes || {});
+                                        return entries.map(([key, val], idx) => (
+                                          <React.Fragment key={key}>
+                                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-tight ${
+                                              idx % 2 === 0 ? 'bg-blue-500 text-white' : 'bg-emerald-500 text-white'
+                                            }`}>
+                                              {String(val)}
+                                            </span>
+                                            {idx < entries.length - 1 && <ChevronRight size={10} className="text-muted-foreground/40" />}
+                                          </React.Fragment>
+                                        ));
+                                      })()}
                                     </div>
                                   )}
                                 </div>
