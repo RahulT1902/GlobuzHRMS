@@ -473,19 +473,20 @@ export const deleteOrder = async (req: Request, res: Response) => {
       return apiResponse.error(res, "Cannot delete orders that have affected inventory.", 400);
     }
 
-    await prisma.procurementOrder.delete({
-      where: { id: String(id) }
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.procurementOrder.delete({
+        where: { id: String(id) }
+      });
 
-    // Logging the action
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: "DELETE",
-        entity: "ProcurementOrder",
-        entityId: id,
-        module: "PROCUREMENT"
-      }
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: "DELETE",
+          entity: "ProcurementOrder",
+          entityId: id,
+          module: "PROCUREMENT"
+        }
+      });
     });
 
     return apiResponse.success(res, "Procurement order deleted successfully");

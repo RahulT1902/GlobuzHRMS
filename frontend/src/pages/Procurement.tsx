@@ -174,17 +174,36 @@ const Procurement: React.FC = () => {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
+    // Immediate state isolation
+    if (actionLoading) return;
+    
     if (!window.confirm('⚠️ HEAVY OVERRIDE: Are you absolutely sure you want to PERMANENTLY DELETE this procurement request? This cannot be undone and will be logged in the audit trail.')) return;
     
     setActionLoading(true);
     setActionMsg('');
+    
     try {
+      // Force close details if it's the same order
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(null);
+      }
+      
       await api.delete(`/procurement/${orderId}`);
+      
+      // Update local state immediately
       setOrders(prev => prev.filter(o => o.id !== orderId));
-      setSelectedOrder(null);
+      
+      // Clear global selections
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(null);
+      }
+      
       refreshNotifications();
     } catch (err: any) {
-      setActionMsg('Error: ' + (err.response?.data?.message || 'Delete failed. You may not have the required administrative role.'));
+      const errorMsg = err.response?.data?.message || 'Delete failed. You may not have the required administrative role.';
+      setActionMsg('Error: ' + errorMsg);
+      // Re-fetch only on error to ensure sync
+      fetchData(); 
     } finally {
       setActionLoading(false);
     }
@@ -296,8 +315,15 @@ const Procurement: React.FC = () => {
                     <div className="flex items-center justify-end gap-2">
                       {hasPermission(PERMISSIONS.ADMIN_CONFIG) && (
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
-                          className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"
+                          disabled={actionLoading}
+                          onClick={(e) => { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            handleDeleteOrder(order.id); 
+                          }}
+                          className={`p-2 rounded-xl transition-all ${
+                            actionLoading ? 'opacity-20 cursor-wait' : 'text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100'
+                          }`}
                         >
                           <Trash2 size={18} strokeWidth={3} />
                         </button>

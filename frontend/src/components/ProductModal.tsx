@@ -44,7 +44,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
   const [editStock, setEditStock] = useState('0');       // For Single Edit
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [customValues, setCustomValues] = useState<Record<number, string>>({});
-  const [attributes, setAttributes] = useState({ color: "", size: "", gsm: "" });
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [sku, setSku] = useState("");
   const [price, setPrice] = useState("");
   const [minThreshold, setMinThreshold] = useState("5");
@@ -173,12 +173,16 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
         return normalizeToken(cat?.name || '').substring(0, 3);
       });
 
-      // Append Attributes to SKU (Deterministic order)
       const lastId = currentPath[currentPath.length - 1];
       const lastCat = categoryMap.get(lastId);
+      const childAttributes = getChildren(lastId);
+
       const attrCodes = lastCat?.isCustom ? 
-        ['color', 'size', 'gsm']
-          .map(k => normalizeToken(attributes[k as keyof typeof attributes]))
+        childAttributes
+          .map(child => {
+            const key = child.name.replace(/:/g, '').trim().toLowerCase();
+            return normalizeToken(attributes[key] || '');
+          })
           .filter(Boolean) : [];
 
       const suggested = [prefix, ...pathCodes, ...attrCodes].join('-');
@@ -218,21 +222,32 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
     );
 
     if (leafCat?.isCustom) {
-       if (!cleanedAttr.color || !cleanedAttr.gsm) {
-         setError('Color and GSM are required for custom items.');
-         return;
+       const childAttributes = getChildren(leafId);
+       for (const child of childAttributes) {
+         const key = child.name.replace(/:/g, '').trim().toLowerCase();
+         if (!cleanedAttr[key]) {
+           setError(`${child.name.replace(/:/g, '').trim()} is required for custom items.`);
+           return;
+         }
        }
     }
 
+    const attrValues = leafCat?.isCustom ? 
+      getChildren(leafId).map(child => {
+        const key = child.name.replace(/:/g, '').trim().toLowerCase();
+        return cleanedAttr[key];
+      }) : [];
+
     const currentKey = [
       ...currentPath,
-      ...(leafCat?.isCustom ? ['color', 'size', 'gsm'].map(k => cleanedAttr[k]) : [])
+      ...attrValues
     ].filter(Boolean).join("|");
 
     const isDuplicate = variants.some(v => {
+      const vAttrValues = v.attributes ? Object.values(v.attributes) : [];
       const vKey = [
         ...v.categoryPath,
-        ...(v.attributes ? ['color', 'size', 'gsm'].map(k => v.attributes![k]) : [])
+        ...vAttrValues
       ].filter(Boolean).join("|");
       return vKey === currentKey;
     });
@@ -558,43 +573,26 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                         const lastCat = categoryMap.get(lastId);
                         if (!lastCat?.isCustom) return null;
 
-                        return (
-                          <>
-                            <div className="space-y-1.5 flex-shrink-0 w-40 animate-in slide-in-from-right-2 duration-300">
-                              <span className="text-[9px] uppercase font-bold text-primary/80 ml-1">Color *</span>
+                        const childAttributes = getChildren(lastId);
+
+                        return childAttributes.map((child) => {
+                          const key = child.name.replace(/:/g, '').trim().toLowerCase();
+                          const label = child.name.replace(/:/g, '').trim();
+                          
+                          return (
+                            <div key={child.id} className="space-y-1.5 flex-shrink-0 w-36 animate-in slide-in-from-right-2 duration-300">
+                              <span className="text-[9px] uppercase font-bold text-primary/80 ml-1">{label} *</span>
                               <div className="space-y-2">
                                 <input
                                   className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary font-bold uppercase transition-all"
-                                  placeholder="Red, Blue..."
-                                  value={attributes.color}
-                                  onChange={e => setAttributes(p => ({ ...p, color: e.target.value }))}
+                                  placeholder={`Enter ${label}...`}
+                                  value={attributes[key] || ""}
+                                  onChange={e => setAttributes(p => ({ ...p, [key]: e.target.value }))}
                                 />
                               </div>
                             </div>
-                            <div className="space-y-1.5 flex-shrink-0 w-32 animate-in slide-in-from-right-3 duration-300">
-                              <span className="text-[9px] uppercase font-bold text-primary/70 ml-1">Size</span>
-                              <div className="space-y-2">
-                                <input
-                                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary font-bold uppercase transition-all"
-                                  placeholder="XL, 32..."
-                                  value={attributes.size}
-                                  onChange={e => setAttributes(p => ({ ...p, size: e.target.value }))}
-                                />
-                              </div>
-                            </div>
-                            <div className="space-y-1.5 flex-shrink-0 w-28 animate-in slide-in-from-right-4 duration-300">
-                              <span className="text-[9px] uppercase font-bold text-primary/80 ml-1">GSM *</span>
-                              <div className="space-y-2">
-                                <input
-                                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary font-bold uppercase transition-all"
-                                  placeholder="200, 350..."
-                                  value={attributes.gsm}
-                                  onChange={e => setAttributes(p => ({ ...p, gsm: e.target.value }))}
-                                />
-                              </div>
-                            </div>
-                          </>
-                        );
+                          );
+                        });
                       })()}
 
                       {/* Next Level (Only if children exist and not at MAX_DEPTH) */}
@@ -709,22 +707,17 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSuccess,
                                     </React.Fragment>
                                   ))}
                                   {v.attributes && (
-                                    <div className="flex items-center gap-1.5">
-                                      {v.attributes.color && (
-                                        <span className="px-2 py-0.5 bg-blue-500 text-white rounded-md text-[9px] font-black tracking-tight">{v.attributes.color}</span>
-                                      )}
-                                      {v.attributes.size && (
-                                        <ChevronRight size={10} className="text-muted-foreground/40" />
-                                      )}
-                                      {v.attributes.size && (
-                                        <span className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded-md text-[9px] font-black tracking-tight">{v.attributes.size}</span>
-                                      )}
-                                      {v.attributes.gsm && (
-                                        <ChevronRight size={10} className="text-muted-foreground/40" />
-                                      )}
-                                      {v.attributes.gsm && (
-                                        <span className="px-2 py-0.5 bg-emerald-500 text-white rounded-md text-[9px] font-black tracking-tight">{v.attributes.gsm} GSM</span>
-                                      )}
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {Object.entries(v.attributes || {}).map(([key, val], idx) => (
+                                        <React.Fragment key={key}>
+                                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-tight ${
+                                            idx % 2 === 0 ? 'bg-blue-500 text-white' : 'bg-emerald-500 text-white'
+                                          }`}>
+                                            {String(val)}
+                                          </span>
+                                          {idx < Object.entries(v.attributes).length - 1 && <ChevronRight size={10} className="text-muted-foreground/40" />}
+                                        </React.Fragment>
+                                      ))}
                                     </div>
                                   )}
                                 </div>

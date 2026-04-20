@@ -94,14 +94,25 @@ export const createProductsBatch = async (req: AuthRequest, res: Response) => {
 
       const leafId = v.categoryPath[v.categoryPath.length - 1];
       const leafCat = catMap.get(leafId);
+      
       if (leafCat?.isCustom) {
+        // Fetch children of this custom category (these are our attributes)
+        const childAttributes = await prisma.category.findMany({ 
+          where: { parentId: leafId, isActive: true },
+          select: { name: true }
+        });
+
         const attr = v.attributes || {};
-        if (!attr.color || !attr.gsm) {
-          return res.status(400).json({ 
-            success: false, 
-            type: "VALIDATION_ERROR", 
-            errors: [{ index, field: 'attributes', message: 'Color and GSM are required for custom categories.' }] 
-          });
+        for (const child of childAttributes) {
+          // Normalize key (e.g., "Color :" -> "color")
+          const key = child.name.replace(/:/g, '').trim().toLowerCase();
+          if (!attr[key]) {
+            return res.status(400).json({ 
+              success: false, 
+              type: "VALIDATION_ERROR", 
+              errors: [{ index, field: 'attributes', message: `${child.name.replace(/:/g, '').trim()} is required.` }] 
+            });
+          }
         }
       }
     }
