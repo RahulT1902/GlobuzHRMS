@@ -17,6 +17,7 @@ interface ProcurementItem {
   name: string;
   quantity: number;
   unitPrice: number;
+  attributes?: any;
 }
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
@@ -123,7 +124,13 @@ const Procurement: React.FC = () => {
     if (wizardData.items.find(i => i.productId === productId)) return;
     const product = products.find((p: any) => p.id === productId);
     if (!product) return;
-    const newItems = [...wizardData.items, { productId: product.id, name: product.name, quantity: 1, unitPrice: product.purchasePrice || 0 }];
+    const newItems = [...wizardData.items, { 
+      productId: product.id, 
+      name: product.name, 
+      quantity: 1, 
+      unitPrice: product.purchasePrice || 0,
+      attributes: product.attributes 
+    }];
     setWizardData({ ...wizardData, items: newItems, totalAmount: calculateTotal(newItems) });
   };
 
@@ -505,6 +512,68 @@ const Procurement: React.FC = () => {
                           );
                         })}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Order Items Manifest */}
+                  <div className="bg-background/40 border border-border/50 rounded-[2.5rem] p-10 relative overflow-hidden group/manifest shadow-sm">
+                     <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] group-hover/manifest:bg-emerald-500/10 transition-all duration-1000"></div>
+                     
+                    <div className="flex items-center justify-between mb-8 border-b border-border/40 pb-6 relative z-10">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-muted-foreground font-black">PAYLOAD MANIFEST</p>
+                        <h4 className="text-xs font-black text-foreground mt-1 uppercase tracking-[0.2em] opacity-60">Verified Logistics Breakdown</h4>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-black text-primary bg-primary/10 px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
+                          {selectedOrder.items?.length || 0} Assets Staged
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-4 relative z-10">
+                      {selectedOrder.items?.map((item: any) => (
+                        <div key={item.id} className="flex justify-between items-start group/item p-6 bg-background/40 rounded-[1.5rem] border border-border/50 hover:border-primary/30 hover:bg-background/60 transition-all shadow-sm">
+                          <div className="flex flex-col flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <span className="text-sm font-black text-foreground uppercase tracking-tight group-hover/item:text-primary transition-colors leading-none">
+                                {item.product?.name || 'Unknown Product'}
+                              </span>
+                              <span className="text-[8px] font-mono font-bold text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-md border border-border/50 uppercase">
+                                {item.product?.sku || 'NO-SKU'}
+                              </span>
+                            </div>
+                            
+                            {item.product?.attributes && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {Object.entries(item.product.attributes).map(([key, val]: [string, any], i) => (
+                                  <span key={key} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight ${
+                                    i % 2 === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                  }`}>
+                                    {key}: {val}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/10">
+                               <div className="flex flex-col">
+                                 <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Payload Qty</span>
+                                 <span className="text-xs font-black text-foreground">{item.quantity} Units</span>
+                               </div>
+                               <div className="w-[1px] h-6 bg-border/30"></div>
+                               <div className="flex flex-col">
+                                 <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Negotiated Rate</span>
+                                 <span className="text-xs font-black text-foreground">₹{Number(item.unitPrice).toLocaleString()}</span>
+                               </div>
+                            </div>
+                          </div>
+                          <div className="text-right pl-6 border-l border-border/10 h-full flex flex-col justify-center">
+                             <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Item Total</p>
+                             <span className="text-xl font-black text-foreground font-mono tracking-tighter">₹{(item.quantity * item.unitPrice).toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -898,6 +967,17 @@ const Procurement: React.FC = () => {
                           >
                             <div className="col-span-12 md:col-span-5">
                               <p className="text-sm font-black text-foreground uppercase tracking-tight">{item.name}</p>
+                              {item.attributes && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {Object.entries(item.attributes).map(([key, val]: [string, any], i) => (
+                                    <span key={key} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight ${
+                                      i % 2 === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                    }`}>
+                                      {key}: {val}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                               <div className="flex items-center gap-2 mt-1.5 ">
                                  <span className="text-[10px] font-mono text-muted-foreground/60 bg-muted px-2 py-0.5 rounded-lg border border-border/50">BASE VALUE: ₹{item.unitPrice}</span>
                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40"></span>
@@ -982,6 +1062,15 @@ const Procurement: React.FC = () => {
                           <div key={item.productId} className="flex justify-between items-center group">
                             <div className="flex flex-col">
                                <span className="text-sm font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors">{item.name}</span>
+                               {item.attributes && (
+                                 <div className="flex flex-wrap gap-1.5 mt-1">
+                                   {Object.entries(item.attributes).map(([key, val]: [string, any]) => (
+                                     <span key={key} className="text-[8px] font-black uppercase text-primary/60">
+                                       {key}: {val}
+                                     </span>
+                                   ))}
+                                 </div>
+                               )}
                                <span className="text-[10px] text-muted-foreground/60 font-black uppercase tracking-widest">UNIT Qty: {item.quantity}</span>
                             </div>
                             <div className="text-right">
