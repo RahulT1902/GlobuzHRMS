@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../config/database";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 
-const prisma = new PrismaClient();
+// Removed redundant new PrismaClient()
 
 const TABLE_ORDER = [
   "SystemSetting",
