@@ -9,7 +9,8 @@ import {
   getOrders, 
   getOrderById,
   getNotificationCounts,
-  deleteOrder
+  deleteOrder,
+  resendOrderEmail
 } from "./procurement.controller";
 import { authenticate, authorize } from "../../middleware/auth.middleware";
 
@@ -30,6 +31,7 @@ router.delete("/:id", authenticate, authorize("ADMIN"), deleteOrder);
 
 // Moving to Ordered Phase
 router.put("/:id/order", authenticate, authorize("ADMIN", "PROCUREMENT"), markAsOrdered);
+router.post("/:id/resend-email", authenticate, authorize("ADMIN", "PROCUREMENT"), resendOrderEmail);
 
 // Receiving Shipments (Challans): INVENTORY or ADMIN
 router.post("/:id/receive", authenticate, authorize("INVENTORY", "ADMIN"), receiveShipment);

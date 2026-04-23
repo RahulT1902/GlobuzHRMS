@@ -250,11 +250,10 @@ model ProcurementItem {
   quantity         Int
   unitPrice        Float
   receivedQuantity Int                       @default(0)
+  attributes       Json?
   order            ProcurementOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product          Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
   shipmentItems    ProcurementShipmentItem[]
-
-  @@unique([orderId, productId])
 }
 
 model ProcurementShipment {

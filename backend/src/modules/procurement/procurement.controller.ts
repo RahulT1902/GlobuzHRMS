@@ -37,12 +37,13 @@ export const createOrder = async (req: Request, res: Response) => {
           create: items.map((item: any) => ({
             productId: item.productId,
             quantity: item.quantity,
-            unitPrice: item.unitPrice
+            unitPrice: item.unitPrice,
+            attributes: item.attributes || null
           }))
         }
       },
       include: { 
-        items: true,
+        items: { include: { product: true } },
         vendor: { select: { name: true } }
       }
     });
@@ -173,16 +174,19 @@ export const markAsOrdered = async (req: Request, res: Response) => {
       }).then(user => {
         if (!user) return;
 
-        let fromEmail = user.email || process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev";
-        if (fromEmail.endsWith("@globuzinc.com")) {
-          fromEmail = fromEmail.replace("@globuzinc.com", "@globuzhrms.com");
-        }
+        let fromEmail = process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev";
+        
+        // Proper DMARC-compliant "From" header: "Name via Globuz <verified@domain.com>"
+        // This prevents Junk folders by matching the sending domain while keeping the user's name.
+        const fromDisplay = user.name 
+          ? `${user.name} via Globuz <${fromEmail}>` 
+          : `Globuz Procurement <${fromEmail}>`;
 
         const html = generatePOHtml(updatedOrder, user.name || "Purchasing Team");
         
         sendEmail({
           to: updatedOrder.vendor.email,
-          from: fromEmail,
+          from: fromDisplay,
           replyTo: user.email || fromEmail,
           subject: `Purchase Order Issued: PO-${updatedOrder.id.slice(0, 8).toUpperCase()}`,
           html
@@ -493,5 +497,52 @@ export const deleteOrder = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Delete Order Error:", error);
     return apiResponse.error(res, "Failed to delete procurement order", 500);
+  }
+};
+
+export const resendOrderEmail = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+
+    const order = await prisma.procurementOrder.findUnique({
+      where: { id: String(id) },
+      include: { 
+        items: { include: { product: true } },
+        vendor: true,
+        createdBy: true
+      }
+    });
+
+    if (!order) return apiResponse.error(res, "Order not found", 404);
+    if (!["ORDERED", "PARTIALLY_RECEIVED", "COMPLETED"].includes(order.status)) {
+      return apiResponse.error(res, "Order must be in ORDERED or received status to send PO.", 400);
+    }
+
+    if (!order.vendor?.email) {
+      return apiResponse.error(res, "Vendor email missing.", 400);
+    }
+
+    const fromEmail = process.env.SYSTEM_EMAIL_FROM || "onboarding@resend.dev";
+
+    // Proper DMARC-compliant "From" header
+    const fromDisplay = user.name 
+      ? `${user.name} via Globuz <${fromEmail}>` 
+      : `Globuz Procurement <${fromEmail}>`;
+
+    const html = generatePOHtml(order, user.name || "Purchasing Team");
+    
+    await sendEmail({
+      to: order.vendor.email,
+      from: fromDisplay,
+      replyTo: user.email || fromEmail,
+      subject: `RE-ISSUE: Purchase Order PO-${order.id.slice(0, 8).toUpperCase()}`,
+      html
+    });
+
+    return apiResponse.success(res, "Email re-sent to vendor.");
+  } catch (error) {
+    console.error("Email Resend Error:", error);
+    return apiResponse.error(res, "Failed to re-send email", 500);
   }
 };

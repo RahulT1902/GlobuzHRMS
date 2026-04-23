@@ -4,7 +4,7 @@ import api from '../services/api';
 import { 
   Plus, Trash2, ChevronRight, ChevronLeft,
   CheckCircle2, AlertCircle, Package, User, Calculator, Search,
-  FileText, X, Send, ThumbsUp, PackageCheck, Clock, XCircle
+  FileText, X, Send, ThumbsUp, PackageCheck, Clock, XCircle, Mail
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ShipmentReceiptModal from '../components/ShipmentReceiptModal';
@@ -37,6 +37,8 @@ const Procurement: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [categoryMap, setCategoryMap] = useState<Map<string, any>>(new Map());
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -75,14 +77,20 @@ const Procurement: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [poRes, vRes, pRes] = await Promise.all([
+      const [poRes, vRes, pRes, cRes] = await Promise.all([
         api.get('/procurement'),
         api.get('/vendors'),
-        api.get('/inventory')
+        api.get('/inventory'),
+        api.get('/config/categories?type=INVENTORY')
       ]);
       setOrders(poRes.data.data || []);
       setVendors(vRes.data.data || []);
       setProducts(pRes.data.data?.products || []);
+      const cats = cRes.data.data || [];
+      setCategories(cats);
+      const map = new Map();
+      cats.forEach((c: any) => map.set(c.id, c));
+      setCategoryMap(map);
     } catch (error) {
       console.error('Failed to fetch procurement data', error);
     } finally {
@@ -92,6 +100,13 @@ const Procurement: React.FC = () => {
 
   const calculateTotal = (items: ProcurementItem[]) =>
     items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+
+  const getAttributesForCategory = (catId: string) => {
+    if (!catId) return [];
+    const cat = categoryMap.get(catId);
+    if (!cat?.isCustom) return [];
+    return categories.filter(c => c.parentId === catId && c.isActive);
+  };
 
   const getActionRequired = (order: any) => {
     if (!order) return null;
@@ -120,8 +135,6 @@ const Procurement: React.FC = () => {
 
   const addItemToOrder = (productId: string) => {
     if (!productId) return;
-    // Prevent duplicates
-    if (wizardData.items.find(i => i.productId === productId)) return;
     const product = products.find((p: any) => p.id === productId);
     if (!product) return;
     const newItems = [...wizardData.items, { 
@@ -129,8 +142,15 @@ const Procurement: React.FC = () => {
       name: product.name, 
       quantity: 1, 
       unitPrice: product.purchasePrice || 0,
-      attributes: product.attributes 
+      attributes: { ...(product.attributes || {}) } 
     }];
+    setWizardData({ ...wizardData, items: newItems, totalAmount: calculateTotal(newItems) });
+  };
+
+  const addVariant = (productId: string) => {
+    const existing = wizardData.items.find(i => i.productId === productId);
+    if (!existing) return;
+    const newItems = [...wizardData.items, { ...existing, quantity: 1 }];
     setWizardData({ ...wizardData, items: newItems, totalAmount: calculateTotal(newItems) });
   };
 
@@ -140,10 +160,6 @@ const Procurement: React.FC = () => {
     setWizardData({ ...wizardData, items: newItems, totalAmount: calculateTotal(newItems) });
   };
 
-  const removeItem = (index: number) => {
-    const newItems = wizardData.items.filter((_, i) => i !== index);
-    setWizardData({ ...wizardData, items: newItems, totalAmount: calculateTotal(newItems) });
-  };
 
   const handleCreateOrder = async () => {
     try {
@@ -175,6 +191,19 @@ const Procurement: React.FC = () => {
       refreshNotifications();
     } catch (err: any) {
       setActionMsg('Error: ' + (err.response?.data?.message || 'Action failed. You may not have the required role.'));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResendEmail = async (orderId: string) => {
+    setActionLoading(true);
+    setActionMsg('');
+    try {
+      await api.post(`/procurement/${orderId}/resend-email`);
+      setActionMsg('Success: Email re-sent to vendor.');
+    } catch (err: any) {
+      setActionMsg('Error: ' + (err.response?.data?.message || 'Failed to re-send email.'));
     } finally {
       setActionLoading(false);
     }
@@ -537,24 +566,35 @@ const Procurement: React.FC = () => {
                           <div className="flex flex-col flex-1">
                             <div className="flex items-center gap-3 mb-1">
                               <span className="text-sm font-black text-foreground uppercase tracking-tight group-hover/item:text-primary transition-colors leading-none">
-                                {item.product?.name || 'Unknown Product'}
+                                {item.product?.name || item.name || 'Unknown Product'}
                               </span>
                               <span className="text-[8px] font-mono font-bold text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-md border border-border/50 uppercase">
                                 {item.product?.sku || 'NO-SKU'}
                               </span>
                             </div>
                             
-                            {item.product?.attributes && (
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {Object.entries(item.product.attributes).map(([key, val]: [string, any], i) => (
-                                  <span key={key} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight ${
-                                    i % 2 === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                  }`}>
-                                    {key}: {val}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            {/* Combined Attributes: Show item-specific first, then product defaults if not redundant */}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {(() => {
+                                const itemAttrs = item.attributes || {};
+                                const prodAttrs = item.product?.attributes || {};
+                                const allKeys = Array.from(new Set([...Object.keys(itemAttrs), ...Object.keys(prodAttrs)]));
+                                
+                                if (allKeys.length === 0) return null;
+
+                                return allKeys.map((key, i) => {
+                                  const val = itemAttrs[key] || prodAttrs[key];
+                                  if (!val) return null;
+                                  return (
+                                    <span key={key} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight ${
+                                      i % 2 === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                    }`}>
+                                      {key}: {val}
+                                    </span>
+                                  );
+                                });
+                              })()}
+                            </div>
                             
                             <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/10">
                                <div className="flex flex-col">
@@ -773,6 +813,16 @@ const Procurement: React.FC = () => {
                           LOGISTICS LIFECYCLE FINALIZED
                         </div>
                       )}
+
+                      {['ORDERED', 'PARTIALLY_RECEIVED', 'COMPLETED'].includes(selectedOrder.status) && (
+                        <button
+                          disabled={actionLoading || !hasPermission(PERMISSIONS.PROCUREMENT_CREATE)}
+                          onClick={() => handleResendEmail(selectedOrder.id)}
+                          className="w-full h-12 flex items-center justify-center gap-3 bg-primary/5 hover:bg-primary/10 text-primary font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl transition-all border border-primary/20 mt-6"
+                        >
+                          <Mail size={16} strokeWidth={3} /> {actionLoading ? 'DISPATCHING...' : 'RESEND PO TO VENDOR'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -958,69 +1008,176 @@ const Procurement: React.FC = () => {
                           <p className="text-muted-foreground/60 text-sm mt-2 max-w-xs mx-auto">Selected items from your global repository will appear here for batch configuration.</p>
                         </div>
                       ) : (
-                        wizardData.items.map((item, idx) => (
-                          <motion.div 
-                            key={item.productId} 
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="bg-background/60 border-2 border-border/50 rounded-[2rem] p-6 grid grid-cols-12 gap-6 items-center shadow-sm hover:border-primary/30 transition-all"
-                          >
-                            <div className="col-span-12 md:col-span-5">
-                              <p className="text-sm font-black text-foreground uppercase tracking-tight">{item.name}</p>
-                              {item.attributes && (
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  {Object.entries(item.attributes).map(([key, val]: [string, any], i) => (
-                                    <span key={key} className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tight ${
-                                      i % 2 === 0 ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                    }`}>
-                                      {key}: {val}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 mt-1.5 ">
-                                 <span className="text-[10px] font-mono text-muted-foreground/60 bg-muted px-2 py-0.5 rounded-lg border border-border/50">BASE VALUE: ₹{item.unitPrice}</span>
-                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40"></span>
-                                 <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">In Stock</span>
-                              </div>
-                            </div>
-                            <div className="col-span-5 md:col-span-3">
-                              <label className="text-[9px] uppercase font-black text-muted-foreground tracking-[0.2em] mb-2 block">Payload Qty</label>
-                              <div className="relative">
-                                <input 
-                                  type="number" min="1"
-                                  value={item.quantity}
-                                  onChange={(e) => updateItem(idx, { quantity: parseInt(e.target.value) || 1 })}
-                                  className="w-full bg-muted/30 border-2 border-border/40 rounded-xl py-2 px-4 text-sm font-black text-foreground focus:outline-none focus:border-primary/50 transition-all"
-                                />
-                              </div>
-                            </div>
-                            <div className="col-span-5 md:col-span-3">
-                              <label className="text-[9px] uppercase font-black text-muted-foreground tracking-[0.2em] mb-2 block">Neg. Price (₹)</label>
-                              <input 
-                                type="number"
-                                value={item.unitPrice}
-                                onChange={(e) => updateItem(idx, { unitPrice: parseFloat(e.target.value) || 0 })}
-                                className="w-full bg-muted/30 border-2 border-border/40 rounded-xl py-2 px-4 text-sm font-black text-foreground focus:outline-none focus:border-primary/50 transition-all"
-                              />
-                            </div>
-                            <div className="col-span-2 md:col-span-1 text-right">
-                              <button onClick={() => removeItem(idx)} className="w-10 h-10 flex items-center justify-center bg-rose-500/5 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all">
-                                <Trash2 size={18} strokeWidth={3} />
-                              </button>
-                            </div>
-                          </motion.div>
-                        ))
+                        <div className="space-y-6">
+                          {(() => {
+                            const groups: Record<string, { items: any[], productId: string, name: string }> = {};
+                            wizardData.items.forEach((item, idx) => {
+                              if (!groups[item.productId]) {
+                                groups[item.productId] = { items: [], productId: item.productId, name: item.name };
+                              }
+                              groups[item.productId].items.push({ ...item, originalIdx: idx });
+                            });
+
+                            return Object.values(groups).map((group) => {
+                              const totalQty = group.items.reduce((sum, i) => sum + i.quantity, 0);
+                              const product = products.find(p => p.id === group.productId);
+                              const attrSchema = getAttributesForCategory(product?.categoryId);
+
+                              return (
+                                <motion.div 
+                                  key={group.productId}
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-[2rem] p-8 relative group overflow-hidden"
+                                >
+                                  <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20 group-hover:bg-primary transition-colors"></div>
+                                  
+                                  <div className="grid grid-cols-12 gap-6 items-start">
+                                    <div className="col-span-12 md:col-span-5">
+                                      <p className="text-sm font-black text-foreground uppercase tracking-tight">{group.name}</p>
+                                      <div className="flex items-center gap-2 mt-1.5">
+                                         <span className="text-[10px] font-mono text-muted-foreground/60 bg-muted px-2 py-0.5 rounded-lg border border-border/50">BASE VALUE: ₹{group.items[0]?.unitPrice}</span>
+                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/40"></span>
+                                         <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">In Stock</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="col-span-10 md:col-span-6 opacity-0 pointer-events-none text-[8px]">
+                                      {/* Spacers for removed header items */}
+                                    </div>
+
+                                    <div className="col-span-2 md:col-span-1 text-right">
+                                      <button 
+                                        onClick={() => {
+                                          const newItems = wizardData.items.filter(i => i.productId !== group.productId);
+                                          setWizardData({ ...wizardData, items: newItems, totalAmount: calculateTotal(newItems) });
+                                        }} 
+                                        className="w-10 h-10 flex items-center justify-center bg-rose-500/5 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all"
+                                        title="Remove All Variants"
+                                      >
+                                        <Trash2 size={18} strokeWidth={3} />
+                                      </button>
+                                    </div>
+
+                                    {/* VARIANT ROWS */}
+                                    <div className="col-span-12 space-y-4 pt-8 border-t border-border/10">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                          <Plus size={14} className="text-primary" />
+                                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Variant Configuration</span>
+                                        </div>
+                                        <button 
+                                          onClick={() => addVariant(group.productId)}
+                                          className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-all text-[9px] font-black uppercase tracking-widest border border-primary/20"
+                                        >
+                                          <Plus size={12} /> Add Another Variant
+                                        </button>
+                                      </div>
+
+                                      {group.items.map((vItem, vIdx) => (
+                                        <div key={`${vItem.productId}-${vIdx}`} className="bg-background/40 backdrop-blur-sm rounded-3xl p-6 relative border border-border/40 shadow-sm transition-all hover:bg-background/60">
+                                          <div className="flex flex-col lg:flex-row gap-8 items-stretch">
+                                            {/* Left: Attributes Grid */}
+                                            <div className="flex-1 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-4">
+                                              {(() => {
+                                                const allAttrKeys = Array.from(new Set([
+                                                  ...attrSchema.map(a => a.name.replace(/:/g, '').trim().toLowerCase()),
+                                                  ...Object.keys(vItem.attributes || {})
+                                                ])).filter(k => k !== 'qty' && k !== 'quantity');
+
+                                                return allAttrKeys.map(key => {
+                                                  const label = attrSchema.find(a => a.name.replace(/:/g, '').trim().toLowerCase() === key)?.name.replace(/:/g, '').trim() || key;
+                                                  return (
+                                                    <div key={key} className="flex flex-col min-w-0">
+                                                      <label className="text-[9px] uppercase font-black text-muted-foreground/40 tracking-[0.2em] pl-1 mb-2 whitespace-nowrap overflow-hidden text-ellipsis" title={label}>
+                                                        {label}
+                                                      </label>
+                                                      <input 
+                                                        type="text"
+                                                        placeholder={`${label.toUpperCase()}...`}
+                                                        value={vItem.attributes?.[key] || ''}
+                                                        onChange={(e) => {
+                                                          const newAttrs = { ...(vItem.attributes || {}), [key]: e.target.value };
+                                                          updateItem(vItem.originalIdx, { attributes: newAttrs });
+                                                        }}
+                                                        className="w-full bg-muted/20 border border-border/30 rounded-xl py-2 px-3 text-[11px] font-bold text-foreground focus:outline-none focus:border-primary/40 focus:bg-background transition-all uppercase placeholder:opacity-20"
+                                                      />
+                                                    </div>
+                                                  );
+                                                });
+                                              })()}
+                                            </div>
+
+                                            {/* Right: Financial & Actions Section */}
+                                            <div className="flex items-end gap-6 pt-6 lg:pt-0 lg:pl-10 lg:border-l lg:border-border/10">
+                                              <div className="w-32">
+                                                <label className="text-[9px] uppercase font-black text-primary/60 tracking-[0.2em] block mb-2">Price (₹)</label>
+                                                <div className="relative">
+                                                   <input 
+                                                     type="number"
+                                                     value={vItem.unitPrice}
+                                                     onChange={(e) => updateItem(vItem.originalIdx, { unitPrice: parseFloat(e.target.value) || 0 })}
+                                                     className="w-full bg-primary/5 border border-primary/20 rounded-xl py-2 px-3 text-[11px] font-black text-primary focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-center"
+                                                   />
+                                                </div>
+                                              </div>
+
+                                              <div className="w-20">
+                                                <label className="text-[9px] uppercase font-black text-muted-foreground/60 tracking-[0.2em] block mb-2">Qty</label>
+                                                <input 
+                                                  type="number" min="1"
+                                                  value={vItem.quantity}
+                                                  onChange={(e) => updateItem(vItem.originalIdx, { quantity: parseInt(e.target.value) || 1 })}
+                                                  className="w-full bg-muted/30 border border-border/30 rounded-xl py-2 px-3 text-[11px] font-black text-foreground focus:outline-none focus:border-primary/40 transition-all text-center"
+                                                />
+                                              </div>
+
+                                              <div className="pb-0.5">
+                                                {group.items.length > 1 && (
+                                                  <button 
+                                                    onClick={() => {
+                                                      const newItems = [...wizardData.items];
+                                                      newItems.splice(vItem.originalIdx, 1);
+                                                      setWizardData({ ...wizardData, items: newItems, totalAmount: calculateTotal(newItems) });
+                                                    }}
+                                                    className="w-10 h-10 flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all border border-rose-500/10 hover:border-transparent bg-rose-500/5 group"
+                                                    title="Remove Variant"
+                                                  >
+                                                    <Trash2 size={16} className="transition-transform group-hover:scale-110" />
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+
+                                      <div className="pt-6 mt-4 border-t-2 border-dashed border-border/10 flex justify-end">
+                                        <div className="flex flex-col items-end">
+                                          <span className="text-[10px] items-center font-black text-muted-foreground/40 uppercase tracking-[0.3em] mb-1">
+                                            Block Valuation ({group.name})
+                                          </span>
+                                          <span className="text-xl font-black text-foreground/70 tracking-tighter">
+                                            ₹{group.items.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0).toLocaleString('en-IN')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              );
+                            });
+                          })()}
+                        </div>
                       )}
                     </div>
-                    {wizardData.items.length > 0 && (
-                      <div className="flex justify-end pt-4">
-                        <div className="bg-primary/5 border border-primary/20 rounded-2xl px-6 py-4 flex flex-col items-end shadow-inner">
-                           <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-1">Payload Valuation</span>
-                           <span className="text-3xl font-black text-foreground tracking-tighter">₹{wizardData.totalAmount.toLocaleString('en-IN')}</span>
-                        </div>
+
+                    <div className="flex justify-end pt-4">
+                      <div className="bg-primary/5 border border-primary/20 rounded-2xl px-6 py-4 flex flex-col items-end shadow-inner">
+                         <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-1">Payload Valuation</span>
+                         <span className="text-3xl font-black text-foreground tracking-tighter">₹{wizardData.totalAmount.toLocaleString('en-IN')}</span>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
 
@@ -1058,20 +1215,20 @@ const Procurement: React.FC = () => {
                          <span className="text-[10px] font-black text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-widest">{wizardData.items.length} Units</span>
                       </div>
                       <div className="max-h-52 overflow-y-auto space-y-4 custom-scrollbar pr-2">
-                        {wizardData.items.map((item) => (
-                          <div key={item.productId} className="flex justify-between items-center group">
+                        {wizardData.items.map((item, idx) => (
+                          <div key={`${item.productId}-${idx}`} className="flex justify-between items-center group">
                             <div className="flex flex-col">
                                <span className="text-sm font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors">{item.name}</span>
-                               {item.attributes && (
+                               {item.attributes && Object.keys(item.attributes).length > 0 && (
                                  <div className="flex flex-wrap gap-1.5 mt-1">
                                    {Object.entries(item.attributes).map(([key, val]: [string, any]) => (
-                                     <span key={key} className="text-[8px] font-black uppercase text-primary/60">
+                                     <span key={key} className="px-1.5 py-0.5 rounded bg-primary/10 text-[8px] font-black uppercase text-primary border border-primary/20">
                                        {key}: {val}
                                      </span>
                                    ))}
                                  </div>
                                )}
-                               <span className="text-[10px] text-muted-foreground/60 font-black uppercase tracking-widest">UNIT Qty: {item.quantity}</span>
+                               <span className="text-[10px] text-muted-foreground/60 font-black uppercase tracking-widest">UNIT Qty: {item.quantity} @ ₹{Number(item.unitPrice).toLocaleString()}</span>
                             </div>
                             <div className="text-right">
                                <span className="text-base font-black text-foreground font-mono tracking-tighter">₹{(item.quantity * item.unitPrice).toLocaleString('en-IN')}</span>
