@@ -1019,7 +1019,6 @@ const Procurement: React.FC = () => {
                             });
 
                             return Object.values(groups).map((group) => {
-                              const totalQty = group.items.reduce((sum, i) => sum + i.quantity, 0);
                               const product = products.find(p => p.id === group.productId);
                               const attrSchema = getAttributesForCategory(product?.categoryId);
 
